@@ -1,0 +1,8 @@
+{
+  "name": "KoraFlix",
+  "description": "A modern professional movie and TV streaming application designed in React and Tailwind CSS with real-time TMDB API integration, custom speed video player, and Gemini AI chatbot recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

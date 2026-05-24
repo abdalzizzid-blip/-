@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;750;850;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", "Tajawal", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Premium Cinematic Onyx & Custom Premium Dark Palette */
+  --color-slate-950: #060913; /* Shahid VIP Deep Midnight Background */
+  --color-slate-900: #0D1222; /* Shahid VIP Deep Slate-Blue Card Backing */
+  --color-slate-850: #12192F; /* Shahid VIP Dark Accent */
+  --color-slate-800: #18213E; /* Shahid VIP Accent Border */
+  --color-slate-700: #29345D;
+  --color-slate-600: #3E4D82;
+  --color-slate-300: #cbd5e1;
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #f8fafc;
+
+  /* Royal Champagne Gold */
+  --color-amber-500: #D4AF37; /* Luxurious Primary Gold */
+  --color-amber-450: #ebd072; /* Creamy golden glow */
+  --color-amber-400: #e1c258; /* Gentle golden text */
+  --color-amber-200: #fbf4d4;
+
+  /* Cinema Premium Crimson Accent -> Shahid VIP Vibrant Green Accent */
+  --color-rose-600: #13E27D; /* Shahid Icon Signature Digital Green */
+  --color-rose-605: #11C56C; /* Shahid Slightly deeper green */
+  --color-rose-550: #0f9f57; /* Shahid dark neon border green */
+  --color-rose-500: #0DF06C; /* Shahid vibrant middle green */
+  --color-rose-450: #3AF996; /* Shahid bright highlight */
+  --color-rose-400: #12E275; /* Shahid neon tint */
+}
+
+/* Base resets & Arabic enhancement overrides */
+* {
+  /* Prevent broken spacing on Arabic fonts */
+  letter-spacing: normal !important;
+  font-feature-settings: "cv01", "ss01", "ss03";
+}
+
+/* Custom gorgeous scrollbar with golden amber thumb & dark track */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0B0B;
+}
+::-webkit-scrollbar-thumb {
+  background: #1C1C1C;
+  border-radius: 99px;
+  border: 2px solid #0B0B0B;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
+
+body {
+  background-color: #0B0B0B;
+  color: #f5f5f5;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Elegant glowing backing lights to simulate movie theater ambient lights */
+body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 30%;
+  width: 50vw;
+  height: 400px;
+  background: radial-gradient(circle, rgba(19, 226, 125, 0.06) 0%, rgba(212, 175, 55, 0.03) 50%, transparent 100%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(80px);
+}
+
+body::after {
+  content: "";
+  position: absolute;
+  top: 60%;
+  right: 15%;
+  width: 60vw;
+  height: 500px;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.04) 0%, rgba(19, 226, 125, 0.03) 40%, transparent 100%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(100px);
+}
+
+/* Golden & Crimson Selection Highlighting */
+::selection {
+  background-color: rgba(19, 226, 125, 0.25);
+  color: #fbf4d4;
+}
+
+/* Glassmorphism utility card */
+.glass-panel {
+  background: rgba(13, 18, 34, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(19, 226, 125, 0.08);
+}
+
+/* Movie premium glows and shadows */
+.cinema-glow {
+  box-shadow: 0 0 40px -10px rgba(212, 175, 55, 0.12);
+}
+
+.crimson-glow {
+  box-shadow: 0 0 40px -10px rgba(19, 226, 125, 0.15);
+}

@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing synchronized watchlist and watch history.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique authenticated user ID."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's registered Google email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Profile picture URL."
+        },
+        "role": {
+          "type": "string",
+          "description": "user or admin status for authorization."
+        },
+        "watchlist": {
+          "type": "array",
+          "description": "List of movie/show IDs the user saved."
+        },
+        "history": {
+          "type": "array",
+          "description": "Historic items watched with progress indicators."
+        }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection storing personalized profile, watchlist, and play history, restricted for access."
+    }
+  }
+}
