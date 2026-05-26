@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MediaItem } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Star, Play, Heart, Plus, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -12,7 +13,9 @@ interface MovieCardProps {
 export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const navigate = useNavigate();
   const { toggleWatchlist, isInWatchlist } = useAuth();
+  const { lang, t } = useLanguage();
   const exists = isInWatchlist(item.id);
+  const isRtl = lang === 'ar';
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,7 +43,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
             <span>{item.rating || 'N/A'}</span>
           </span>
           <span className="bg-rose-600 font-black tracking-widest text-[9px] uppercase px-2 py-1 rounded-lg text-white">
-            {item.type === 'tv' ? 'TV' : 'MOVIE'}
+            {item.type === 'tv' ? (isRtl ? 'مسلسل' : 'TV') : (isRtl ? 'فيلم' : 'MOVIE')}
           </span>
         </div>
 
@@ -87,7 +90,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
       </div>
 
       {/* Info Panel under card */}
-      <div className="p-3 text-left space-y-1.5 grow flex flex-col justify-between">
+      <div className={`p-3 space-y-1.5 grow flex flex-col justify-between ${isRtl ? 'text-right' : 'text-left'}`}>
         <Link to={`/details/${item.type}/${item.id}`} className="hover:text-rose-500 transition-colors block">
           <h3 className="text-sm font-extrabold text-white truncate leading-tight">
             {item.title}
@@ -95,7 +98,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
         </Link>
         <div className="flex items-center justify-between font-bold text-[11px] text-slate-500">
           <span>{item.releaseDate?.split('-')[0] || 'N/A'}</span>
-          <span>{item.genres?.slice(0, 2).join(' / ')}</span>
+          <span>{item.genres?.slice(0, 2).map((g) => t(g.toLowerCase())).join(' / ')}</span>
         </div>
       </div>
     </motion.div>

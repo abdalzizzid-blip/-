@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Film, Home, Search, Heart, User, Shield, LogOut, Menu, X, Settings, Tv, Flame, Crown, Sparkles, Compass } from 'lucide-react';
+import { Film, Home, Search, Heart, User, Shield, LogOut, Menu, X, Settings, Tv, Flame, Crown, Sparkles, Compass, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -12,6 +12,20 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleQuickSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +55,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 flex flex-col antialiased selection:bg-rose-600/30 selection:text-white">
       {/* Top Banner Ticker */}
-      <div className="bg-gradient-to-r from-rose-600 via-purple-600 to-amber-500 text-center py-1.5 px-4 text-[10px] sm:text-[11px] font-black tracking-wide text-white uppercase select-none flex items-center justify-center gap-2 overflow-hidden shrink-0">
-        <span className="flex h-2 w-2 rounded-full bg-white animate-pulse shrink-0" />
-        <span>{t('welcomeBanner')}</span>
+      <div className={`transition-all duration-300 text-center py-1.5 px-4 text-[10px] sm:text-[11px] font-black tracking-wide text-white uppercase select-none flex items-center justify-center gap-2 overflow-hidden shrink-0 ${
+        isOnline 
+          ? 'bg-gradient-to-r from-rose-600 via-purple-600 to-amber-500' 
+          : 'bg-amber-600 border-b border-amber-500/30'
+      }`}>
+        <span className={`flex h-2 w-2 rounded-full bg-white shrink-0 ${isOnline ? 'animate-pulse' : 'animate-ping'}`} />
+        <span>
+          {isOnline 
+            ? t('welcomeBanner') 
+            : (lang === 'ar' ? '⚠️ وضع تصفح الطوارئ (دون اتصال) نشط حالياً - العرض من الذاكرة الاحتياطية' : '⚠️ Off-grid Sandbox Mode active - Streaming metadata from local buffer')}
+        </span>
       </div>
 
       {/* Primary Header */}
@@ -98,6 +120,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
           {/* User & Search Controls with Language Switcher */}
           <div className="flex items-center gap-2.5 sm:gap-3">
             
+            {/* Inline Offline Status Indicator */}
+            {!isOnline && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/10 border border-rose-500/20 text-[10px] font-black text-rose-500 animate-pulse shrink-0">
+                <WifiOff className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">{lang === 'ar' ? 'دون اتصال' : 'OFFLINE'}</span>
+              </span>
+            )}
+
             {/* Language Switch Switcher */}
             <button
               onClick={toggleLanguage}

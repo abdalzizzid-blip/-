@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { mockMediaList } from '../services/mediaData';
 import { MediaItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { adService } from '../services/adService';
 import { 
   Shield, 
   LayoutDashboard, 
@@ -32,7 +33,9 @@ import {
   Sparkles, 
   Flame, 
   Calendar, 
-  Lock 
+  Lock,
+  Megaphone,
+  MousePointerClick
 } from 'lucide-react';
 
 // Preset high quality graphics for fast poster/backdrop setup
@@ -52,7 +55,17 @@ export const AdminPanel: React.FC = () => {
 
   // State managers
   const [catalog, setCatalog] = useState<MediaItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'movies' | 'series' | 'banners' | 'categories' | 'users' | 'analytics' | 'ai' | 'languages'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'movies' | 'series' | 'banners' | 'categories' | 'users' | 'analytics' | 'ai' | 'languages' | 'ads'>('dashboard');
+  
+  // Advertisements management database state
+  const [ads, setAds] = useState<any[]>([]);
+  const [isAdEditing, setIsAdEditing] = useState<boolean>(false);
+  const [editingAdId, setEditingAdId] = useState<string | null>(null);
+  const [adFormTitle, setAdFormTitle] = useState('');
+  const [adFormImageUrl, setAdFormImageUrl] = useState('');
+  const [adFormTargetUrl, setAdFormTargetUrl] = useState('');
+  const [adFormPosition, setAdFormPosition] = useState<'top' | 'middle' | 'sidebar' | 'footer'>('top');
+  const [adFormIsActive, setAdFormIsActive] = useState<boolean>(true);
   
   // Create / Edit Form States
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -143,6 +156,12 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     setCatalog([...mockMediaList]);
+    setAds(adService.getAds());
+    
+    // Sync with real-time server database to fetch accurate click metrics & active campaigns
+    adService.syncWithServer().then(syncedAds => {
+      setAds(syncedAds);
+    }).catch(err => console.error('Initial ads loading synchronization failed:', err));
   }, []);
 
   const triggerToast = (text: string, success: boolean = true) => {
@@ -354,6 +373,84 @@ export const AdminPanel: React.FC = () => {
     triggerToast(isRtl ? `تمت إعادة تعيين "${key}" إلى القيمة الافتراضية.` : `Reset translation key "${key}" to defaults.`);
   };
 
+  // Ads CRUD handlers
+  const handleCreateOrUpdateAd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adFormTitle.trim() || !adFormImageUrl.trim() || !adFormTargetUrl.trim()) {
+      triggerToast(isRtl ? 'جميع الحقول مطلوبة لتفعيل الإعلان!' : 'All fields are strictly required for Ad generation!', false);
+      return;
+    }
+
+    if (isAdEditing && editingAdId) {
+      const targetAd = ads.find(a => a.id === editingAdId);
+      if (targetAd) {
+        const updatedAd = {
+          ...targetAd,
+          title: adFormTitle.trim(),
+          imageUrl: adFormImageUrl.trim(),
+          targetUrl: adFormTargetUrl.trim(),
+          position: adFormPosition,
+          isActive: adFormIsActive
+        };
+        const nextAds = adService.updateAd(updatedAd);
+        setAds(nextAds);
+        triggerToast(isRtl ? `تم تحديث الإعلان "${adFormTitle}" بنجاح ⚡` : `Successfully updated ad "${adFormTitle}"`);
+        resetAdForm();
+      }
+    } else {
+      const newAd = {
+        title: adFormTitle.trim(),
+        imageUrl: adFormImageUrl.trim(),
+        targetUrl: adFormTargetUrl.trim(),
+        position: adFormPosition,
+        isActive: adFormIsActive
+      };
+      const nextAds = adService.createAd(newAd);
+      setAds(nextAds);
+      triggerToast(isRtl ? `تم نشر وثيقة الإعلان الممول "${adFormTitle}" فورياً! 🎉` : `Successfully launched new ad "${adFormTitle}"!`);
+      resetAdForm();
+    }
+  };
+
+  const handleStartAdEdit = (ad: any) => {
+    setIsAdEditing(true);
+    setEditingAdId(ad.id);
+    setAdFormTitle(ad.title);
+    setAdFormImageUrl(ad.imageUrl);
+    setAdFormTargetUrl(ad.targetUrl);
+    setAdFormPosition(ad.position);
+    setAdFormIsActive(ad.isActive);
+    
+    const element = document.getElementById('ad-pinnacle');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const resetAdForm = () => {
+    setIsAdEditing(false);
+    setEditingAdId(null);
+    setAdFormTitle('');
+    setAdFormImageUrl('');
+    setAdFormTargetUrl('');
+    setAdFormPosition('top');
+    setAdFormIsActive(true);
+  };
+
+  const handleToggleAdStatus = (id: string) => {
+    const nextAds = adService.toggleAd(id);
+    setAds(nextAds);
+    triggerToast(isRtl ? `تم تبديل حالة تفعيل الإعلان بنجاح.` : `Toggled status for ad.`);
+  };
+
+  const handleDeleteAdItem = (id: string, name: string) => {
+    if (window.confirm(isRtl ? `هل أنت متأكد من رغبتك في إزالة الإعلان "${name}" بشكل نهائي؟` : `Are you sure you want to delete ad ${name}?`)) {
+      const nextAds = adService.deleteAd(id);
+      setAds(nextAds);
+      triggerToast(isRtl ? 'تم حذف الحملة الإعلانية بنجاح.' : 'Deleted ad campaign successfully.', false);
+    }
+  };
+
   const moviesCount = catalog.filter(e => e.type === 'movie').length;
   const tvCount = catalog.filter(e => e.type === 'tv').length;
   const exclusiveCount = catalog.filter(e => e.isExclusive).length;
@@ -435,6 +532,7 @@ export const AdminPanel: React.FC = () => {
             { id: 'banners' as const, label: isRtl ? 'إدارة البانرات والترويج' : 'Billboard & Promotions', icon: ImageIcon, color: 'text-rose-500' },
             { id: 'categories' as const, label: isRtl ? 'التصنيفات والأنواع' : 'Categories & Genres', icon: Layers, color: 'text-teal-500' },
             { id: 'users' as const, label: isRtl ? 'حسابات وتراخيص المستخدمين' : 'Subscriber Licenses', icon: UsersIcon, color: 'text-emerald-500' },
+            { id: 'ads' as const, label: isRtl ? 'إدارة وحوكمة الإعلانات' : 'Ad Campaigns Hub', icon: Megaphone, color: 'text-rose-450 animate-pulse font-black' },
             { id: 'analytics' as const, label: isRtl ? 'المقاييس والإحصائيات دقة 4K' : 'Bandwidth Analytics', icon: BarChart3, color: 'text-indigo-400' },
             { id: 'ai' as const, label: isRtl ? 'مساعد الذكاء الاصطناعي' : 'Gemini AI Assistant', icon: Sparkles, color: 'text-pink-400' },
             { id: 'languages' as const, label: isRtl ? 'قاموس الترجمات والكلمات' : 'Languages & Localization', icon: Compass, color: 'text-orange-400' }
@@ -1465,6 +1563,235 @@ export const AdminPanel: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 10: ADVERTISEMENTS MANAGEMENT MODULE */}
+          {activeTab === 'ads' && (
+            <div className="space-y-6 animate-fade-in text-right">
+              
+              {/* Stats Counters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-[#151515] border border-slate-900 p-5 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-xl pointer-events-none" />
+                  <span className="text-[10px] font-black text-slate-500 block">خيارات الحملات الفعالة</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-white">{ads.filter(a => a.isActive).length}</span>
+                    <span className="text-[10px] font-bold text-rose-500">منشطة حالياً</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#151515] border border-slate-900 p-5 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
+                  <span className="text-[10px] font-black text-slate-500 block">إجمالي نقرات الزوار</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-400">{ads.reduce((acc, curr) => acc + (curr.clicksCount || 0), 0)}</span>
+                    <span className="text-[10px] font-bold text-emerald-400 font-mono">نقرة تم تسجيلها</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#151515] border border-slate-900 p-5 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+                  <span className="text-[10px] font-black text-slate-500 block">العائد ومصنفات الشراكة</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-xl sm:text-2xl font-black text-amber-500">VIP</span>
+                    <span className="text-[10px] font-bold text-slate-400 font-sans">تغطية البث بريميوم</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form segment */}
+              <div id="ad-pinnacle" className="bg-[#151515] border border-slate-900 rounded-3xl p-6 md:p-8 space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-905 pb-3 font-sans">
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <Megaphone className="h-5 w-5 text-rose-500 animate-bounce" />
+                    <span>
+                      {isAdEditing 
+                        ? `تعديل وضبط الإعلان الممول: "${adFormTitle}"` 
+                        : 'إضافة حملة إعلانية ممولة جديدة للمنصة 🚀'
+                      }
+                    </span>
+                  </h3>
+                  {isAdEditing && (
+                    <button 
+                      onClick={resetAdForm}
+                      className="text-xs font-black text-rose-450 bg-rose-600/10 px-3.5 py-1.5 rounded-xl cursor-pointer"
+                    >
+                      إلغاء التعديل
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleCreateOrUpdateAd} className="space-y-4 font-sans">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-400 block">عنوان وتفاصيل الترويج للراعي (العنوان الظاهر للمستخدم):</label>
+                      <input
+                        type="text"
+                        placeholder="مثال: خصم عيد الفطر الكبير على الباقة بلاتينيوم الكبرى..."
+                        value={adFormTitle}
+                        onChange={(e) => setAdFormTitle(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-550 rounded-xl px-4 py-3 text-xs sm:text-sm text-white font-semibold"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-400 block">رابط التوجيه (Target URL - عند نقر المستخدم):</label>
+                      <input
+                        type="text"
+                        placeholder="أدخل رابط توجيه خارجي أو داخلي بالموقع مثل /profile"
+                        value={adFormTargetUrl}
+                        onChange={(e) => setAdFormTargetUrl(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-550 rounded-xl px-4 py-3 text-xs sm:text-sm text-white font-sans"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-400 block">موقع ومكان عرض الشريحة (Placement Position):</label>
+                      <select
+                        value={adFormPosition}
+                        onChange={(e) => setAdFormPosition(e.target.value as any)}
+                        className="w-full bg-slate-950 border border-slate-905 focus:outline-none focus:border-rose-550 rounded-xl px-4 py-3 text-xs sm:text-sm text-white font-bold h-11"
+                      >
+                        <option value="top">هيدر الصفحة الرئيسية (Home Feed Upper Banner)</option>
+                        <option value="middle">بين الصفوف بالرئيسية (Home Feed Rows Splitter)</option>
+                        <option value="sidebar">العمود الجانبي بالتفاصيل (Details Page Sidebar Card)</option>
+                        <option value="footer">البريرول بمشغل السيرفر (Cinematic Video Pre-Roll Interstitial)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-400 block">رابط شعار / جرافيك الإعلان المعبر (Image Backdrop URL):</label>
+                      <input
+                        type="text"
+                        placeholder="أدخل رابط صورة عريض عالي الجودة Unsplash أو خارجي"
+                        value={adFormImageUrl}
+                        onChange={(e) => setAdFormImageUrl(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-550 rounded-xl px-4 py-3 text-xs sm:text-sm text-white font-sans"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Active toggle */}
+                  <div className="flex items-center gap-3 bg-[#0c0c0c] p-4 rounded-xl border border-slate-900">
+                    <input
+                      type="checkbox"
+                      id="adFormIsActive"
+                      checked={adFormIsActive}
+                      onChange={(e) => setAdFormIsActive(e.target.checked)}
+                      className="h-4.5 w-4.5 rounded border-slate-800 text-rose-650 focus:ring-rose-550 cursor-pointer"
+                    />
+                    <label htmlFor="adFormIsActive" className="text-xs font-black text-slate-300 cursor-pointer">
+                      تفعيل الإعلان فورياً للزوار وبدء احتساب الإحصائيات (Active/Live status)
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      className="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs px-8 py-3.5 rounded-xl cursor-pointer flex items-center gap-1.5 transition-all"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span>{isAdEditing ? 'تثبيت التعديل وحفظ الراعي' : 'تنصيب وتوزيع الإعلان بالمنصة'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Table of Ads */}
+              <div className="bg-[#151515] border border-slate-900 rounded-3xl p-6 md:p-8 space-y-4">
+                <span className="text-xs font-black text-rose-500 tracking-wider block">قائمة الحملات الترويجية والشركاء الرسميين بالمنصة</span>
+                
+                <div className="border border-slate-900 rounded-2xl overflow-hidden">
+                  <table className="w-full divide-y divide-slate-800 text-right">
+                    <thead className="bg-[#04010a] text-slate-500 text-[10px] uppercase tracking-widest font-black">
+                      <tr>
+                        <th className="px-5 py-3 text-right">شكل وتفاصيل الإعلان (Graphic Details)</th>
+                        <th className="px-5 py-3 text-right">الموقع الظاهر</th>
+                        <th className="px-5 py-3 text-right">مرات تفاعل النقرة</th>
+                        <th className="px-5 py-3 text-right">حالة العرض</th>
+                        <th className="px-5 py-3 text-left">التوجيه الإجرائي</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-900 text-xs text-slate-300 font-sans">
+                      {ads.map((ad: any) => (
+                        <tr key={ad.id} className="hover:bg-slate-950/20 transition-colors">
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <img src={ad.imageUrl} alt="" className="h-10 w-20 object-cover rounded-lg border border-slate-850 shrink-0" />
+                              <div className="space-y-0.5 max-w-sm truncate">
+                                <span className="block text-xs font-black text-white truncate text-right">{ad.title}</span>
+                                <span className="block text-[10px] text-slate-500 font-medium font-sans truncate text-right">{ad.targetUrl}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-md ${
+                              ad.position === 'top' 
+                                ? 'bg-sky-600/15 text-sky-400 border border-sky-500/10'
+                                : ad.position === 'middle'
+                                ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/10'
+                                : ad.position === 'sidebar'
+                                ? 'bg-slate-300/10 text-slate-300 border border-slate-400/10'
+                                : 'bg-amber-600/15 text-amber-400 border border-amber-500/10'
+                            }`}>
+                              {ad.position === 'top' 
+                                ? 'الهيدر العلوي' 
+                                : ad.position === 'middle' 
+                                ? 'الفصل بين الصفوف' 
+                                : ad.position === 'sidebar' 
+                                ? 'الجانبي للتفاصيل' 
+                                : 'البريرول (مشغل الفيديو)'
+                              }
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-xs font-black text-slate-300 bg-slate-900 border border-slate-950 px-3 py-1.5 rounded-lg inline-flex items-center gap-1">
+                              <MousePointerClick className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                              <span className="font-mono">{ad.clicksCount || 0}</span>
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => handleToggleAdStatus(ad.id)}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black cursor-pointer transition-all uppercase border ${
+                                ad.isActive
+                                  ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/10 hover:bg-emerald-600 hover:text-white'
+                                  : 'bg-rose-600/10 text-rose-450 border-rose-500/10 hover:bg-rose-600 hover:text-white'
+                              }`}
+                            >
+                              {ad.isActive ? 'نشط ●' : 'موقوف ○'}
+                            </button>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap text-left">
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => handleStartAdEdit(ad)}
+                                className="p-2 bg-slate-900 hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-950 rounded-lg cursor-pointer transition-all"
+                                title="تعديل تفاصيل الإعلان"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdItem(ad.id, ad.title)}
+                                className="p-2 bg-slate-900 hover:bg-rose-600 text-slate-500 hover:text-white border border-slate-955 rounded-lg cursor-pointer transition-colors"
+                                title="حذف الحملة نهائياً"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

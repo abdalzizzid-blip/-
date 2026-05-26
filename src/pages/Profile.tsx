@@ -75,6 +75,124 @@ export const Profile: React.FC = () => {
   const [subtitleSize, setSubtitleSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('lg');
   const [alertsEnabled, setAlertsEnabled] = useState<boolean>(true);
 
+  const [offlineCacheActive, setOfflineCacheActive] = useState<boolean>(() => {
+    return localStorage.getItem('koraflix_offline_cache_active') === 'true';
+  });
+  const [cachedItemsCount, setCachedItemsCount] = useState<number>(0);
+  const [isPreCaching, setIsPreCaching] = useState<boolean>(false);
+
+  // Monitor off-grid Service Worker caching states
+  useEffect(() => {
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data) {
+        if (event.data.type === 'CACHE_INFO') {
+          setCachedItemsCount(event.data.count || 0);
+        } else if (event.data.type === 'CACHE_CLEARED') {
+          setCachedItemsCount(0);
+          setToastMessage({
+            text: isRtl ? 'تم تفريغ بافر الذاكرة المحلية المؤقتة 🧹' : 'Offline local buffer cleared fully 🧹',
+            success: true
+          });
+          setTimeout(() => setToastMessage(null), 2500);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleSWMessage);
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+      // Retrieve initial cache metrics if controller active
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'GET_CACHE_INFO' });
+      }
+    }
+
+    return () => {
+      window.removeEventListener('message', handleSWMessage);
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
+  }, [offlineCacheActive]);
+
+  const handlePreCache = async () => {
+    setIsPreCaching(true);
+    setToastMessage({
+      text: isRtl ? 'جاري الاتصال وسحب كتالوج الوسائط السينمائية الأكثر رواجاً وشعبية...' : 'Connecting cache pipelines to TMDB Trending and Popular lists...',
+      success: true
+    });
+    setTimeout(() => setToastMessage(null), 3000);
+
+    try {
+      // Fetch both 'Trending' and 'Popular' lists explicitly from TMDB API
+      const trendingMovies = await tmdbService.getTrending('movie').catch(() => []);
+      const trendingTV = await tmdbService.getTrending('tv').catch(() => []);
+      const popularMovies = await tmdbService.getPopular('movie').catch(() => []);
+      const popularTV = await tmdbService.getPopular('tv').catch(() => []);
+      const nowShowing = await tmdbService.getNowShowing().catch(() => []);
+      
+      const combined = [
+        ...trendingMovies,
+        ...trendingTV,
+        ...popularMovies,
+        ...popularTV,
+        ...nowShowing
+      ];
+
+      // De-duplicate items by ID
+      const uniqueItems = Array.from(new Map(combined.map(item => [item.id, item])).values());
+      const urlsToWarm = ['/', '/index.html'];
+
+      // Cache details and compile image URLs to warm up local storage
+      for (const item of uniqueItems) {
+        if (item.posterUrl) urlsToWarm.push(item.posterUrl);
+        if (item.backdropUrl) urlsToWarm.push(item.backdropUrl);
+        
+        // Fire detail queries to warm up metadata API payloads inside service worker caches
+        tmdbService.getDetails(item.id, item.type).catch(() => {});
+      }
+
+      // Warm up image assets cache explicitly by loading their image references
+      await Promise.all(
+        urlsToWarm.slice(0, 30).map(u => {
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.src = u;
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+          });
+        })
+      );
+
+      // Verify and update stored stats via service worker
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'GET_CACHE_INFO' });
+      }
+
+      setToastMessage({
+        text: isRtl ? 'اكتملت مزامنة الكتالوج للوضع دون اتصال بنجاح! جاهز للسفر 🚀' : 'All Trending & Popular lists synchronized for offline travel! 🚀',
+        success: true
+      });
+      setTimeout(() => setToastMessage(null), 3500);
+    } catch (err) {
+      console.warn('Cache warm-up error:', err);
+    } finally {
+      setIsPreCaching(false);
+    }
+  };
+
+  const handleClearCache = () => {
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+    } else {
+      setToastMessage({
+        text: isRtl ? 'عذراً، خادم التخزين المؤقت غير متصل حالياً' : 'Offline controller not ready yet',
+        success: false
+      });
+      setTimeout(() => setToastMessage(null), 2000);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       setDisplayNameInput(user.displayName || '');
@@ -539,6 +657,90 @@ export const Profile: React.FC = () => {
                 />
               </button>
             </div>
+
+            {/* Setting 5: Offline Cache Toggle */}
+            <div className="flex items-center justify-between gap-3 bg-slate-950/40 p-3.5 rounded-2xl border border-slate-900/50">
+              <div className="space-y-0.5 text-right">
+                <span className="text-xs sm:text-sm font-black text-white block">
+                  {isRtl ? 'تفعيل تشغيل الكتالوج دون اتصال (Offline Mode)' : 'Enable Offline Mode Caching'}
+                </span>
+                <p className="text-[10px] text-slate-500">
+                  {isRtl ? 'تخزين معلومات الأفلام، الصور والمقاطع الدعائية تلقائياً للعرض عند انقطاع الشبكة.' : 'Keep essential movie metadata, posters, and trailers buffered in local browser cache.'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const next = !offlineCacheActive;
+                  setOfflineCacheActive(next);
+                  localStorage.setItem('koraflix_offline_cache_active', String(next));
+                  if (next) {
+                    setToastMessage({
+                      text: isRtl ? 'تم تفعيل الذاكرة المؤقتة دون اتصال! 📡' : 'Offline caching mode active! 📡',
+                      success: true
+                    });
+                  } else {
+                    setToastMessage({
+                      text: isRtl ? 'تم إيقاف الذاكرة المؤقتة للوضع دون اتصال' : 'Offline caching mode deactivated',
+                      success: true
+                    });
+                  }
+                  setTimeout(() => setToastMessage(null), 2050);
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-350 cursor-pointer ${
+                  offlineCacheActive ? 'bg-rose-600' : 'bg-slate-900'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-350 ${
+                    offlineCacheActive ? (isRtl ? '-translate-x-6' : 'translate-x-6') : (isRtl ? '-translate-x-1' : 'translate-x-1')
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Offline cache commands and information stats */}
+            {offlineCacheActive && (
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-dashed border-rose-500/25 space-y-3.5 animate-fade-in text-right">
+                <div className="flex items-center justify-between text-xs font-black">
+                  <span className="text-slate-400">{isRtl ? 'حالة مخزن الطوارئ دون اتصال:' : 'Offline Sandbox Status:'}</span>
+                  <span className="text-rose-500 font-mono select-all bg-rose-600/10 px-2 py-0.5 rounded border border-rose-500/10">
+                    {cachedItemsCount} {isRtl ? 'ملف مخزن محلياً' : 'files cached'}
+                  </span>
+                </div>
+                
+                {/* Specific Travel Preparation Helper Label */}
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  {isRtl 
+                    ? '💡 نصيحة السفر: انقر على زر "مزامنة الآن" أدناه لسحب جميع الأفلام والمسلسلات الشائعة لضمان عملها بشكل كامل في الطائرة أو في الأماكن المغلقة دون اتصال بالشبكة.'
+                    : '💡 Travel Prep Tip: Click "Sync Now" below to pre-download up-to-date Trending & Popular lists so you can watch stream titles on flights or off-grid.'
+                  }
+                </p>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    onClick={handlePreCache}
+                    disabled={isPreCaching}
+                    className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-650 disabled:bg-rose-950 text-white font-extrabold text-[10px] sm:text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none shadow-lg shadow-rose-950/40"
+                  >
+                    {isPreCaching ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    <span>{isPreCaching ? (isRtl ? 'جاري المزامنة...' : 'Syncing...') : (isRtl ? 'مزامنة الآن ⚡' : 'Sync Now ⚡')}</span>
+                  </button>
+
+                  <button
+                    onClick={handleClearCache}
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 text-slate-400 font-extrabold text-[10px] sm:text-xs transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                    <span>{isRtl ? 'تحرير الذاكرة' : 'Flush Caches'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
           </div>
 

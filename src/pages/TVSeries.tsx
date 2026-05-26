@@ -70,7 +70,7 @@ export const TVSeries: React.FC = () => {
                   : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white hover:border-slate-705'
               }`}
             >
-              {genre === 'All' ? (isRtl ? 'الكل' : 'All') : genre}
+              {genre === 'All' ? (isRtl ? 'الكل' : 'All') : t(genre.toLowerCase())}
             </button>
           ))}
         </div>

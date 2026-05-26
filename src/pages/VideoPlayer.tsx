@@ -4,6 +4,7 @@ import { tmdbService } from '../services/tmdbService';
 import { MediaItem, VideoServer, Episode } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { adService } from '../services/adService';
 import { 
   Play, Pause, RotateCcw, Volume2, VolumeX, SkipForward, ArrowLeft, ArrowRight,
   Maximize, Minimize, Settings, Subtitles, Sliders, HardDrive, Clock, 
@@ -52,6 +53,11 @@ export const VideoPlayer: React.FC = () => {
   const [showNextEpCountdown, setShowNextEpCountdown] = useState(false);
   const [nextEpSecsLeft, setNextEpSecsLeft] = useState(10);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pre-roll advertisement sponsorship overlay state
+  const [prerollAd, setPrerollAd] = useState<any>(null);
+  const [showPreroll, setShowPreroll] = useState(false);
+  const [prerollTimeLeft, setPrerollTimeLeft] = useState(5);
 
   // Ripple feedback effects for double taps
   const [rippleSide, setRippleSide] = useState<'left' | 'right' | null>(null);
@@ -131,12 +137,46 @@ export const VideoPlayer: React.FC = () => {
         } else {
           setStreamUrl(data.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4');
         }
+
+        // Search for active pre-roll sponsor campaigns and trigger overlay
+        const activeAds = adService.getAds().filter(a => a.position === 'footer' && a.isActive);
+        if (activeAds.length > 0) {
+          setPrerollAd(activeAds[0]);
+          setShowPreroll(true);
+          setPrerollTimeLeft(5);
+          setIsPlaying(false);
+        } else {
+          setIsPlaying(true);
+        }
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Pre-roll advertisement timer effect
+  useEffect(() => {
+    if (!showPreroll) return;
+    const interval = setInterval(() => {
+      setPrerollTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showPreroll]);
+
+  const handleSkipPreroll = () => {
+    if (prerollAd) {
+      adService.recordClick(prerollAd.id);
+    }
+    setShowPreroll(false);
+    setIsPlaying(true);
   };
 
   // Modify Video Server streams according to chosen Quality (Mocked dynamic switching)
@@ -192,6 +232,64 @@ export const VideoPlayer: React.FC = () => {
       videoRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
+
+  // Keyboard shortcut event listeners for play/pause, mute, and seeking
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Do not trigger key behaviors if user is focused on an input or textarea
+      if (
+        document.activeElement?.tagName === 'INPUT' || 
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      // Ignore shortcuts if preroll ad, next ep countdown, or resume modal are active
+      if (showPreroll || showResumeModal || showNextEpCountdown) {
+        return;
+      }
+
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar': // compatibility support
+          e.preventDefault();
+          setIsPlaying(prev => !prev);
+          setShowControls(true);
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          setIsMuted(prev => !prev);
+          setShowControls(true);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
+            setRippleSide('left');
+            setShowControls(true);
+            setTimeout(() => setRippleSide(null), 700);
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, videoRef.current.duration || 0);
+            setRippleSide('right');
+            setShowControls(true);
+            setTimeout(() => setRippleSide(null), 700);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showPreroll, showResumeModal, showNextEpCountdown]);
 
   // Save progress continuously on time update and sync history percent
   const handleTimeUpdate = () => {
@@ -421,16 +519,86 @@ export const VideoPlayer: React.FC = () => {
         ref={playerContainerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => isPlaying && setShowControls(false)}
-        className="relative aspect-video w-full rounded-3xl overflow-hidden border border-slate-900 bg-black group/player select-none shadow-2xl shadow-black relative"
+        className="relative aspect-video w-full rounded-3xl overflow-hidden border border-slate-900 bg-black group/player select-none shadow-2xl shadow-black"
         id="arabic-cinema-player"
       >
+        
+        {/* Cinematic Pre-Roll Sponsored Interstitial Overlay */}
+        {showPreroll && prerollAd && (
+          <div className="absolute inset-0 bg-black z-50 flex flex-col justify-between p-6 sm:p-10 animate-fade-in" dir={isRtl ? 'rtl' : 'ltr'}>
+            {/* Background sponsor artwork splash */}
+            <div className="absolute inset-0 opacity-40 blur-sm brightness-[0.3] pointer-events-none">
+              <img src={prerollAd.imageUrl} alt="" className="w-full h-full object-cover" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black pointer-events-none" />
+
+            {/* Header info */}
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-rose-600 text-white font-black text-[9px] uppercase tracking-wider rounded-md animate-pulse">
+                  {isRtl ? 'بث برعاية VIP' : 'SPONSORED PRE-ROLL'}
+                </span>
+                <span className="text-[10px] text-slate-450 font-bold">{isRtl ? 'عرض ترويجي ممول' : 'Exclusive Partner'}</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold font-mono">
+                {isRtl ? 'بوابة كورا ميديا م.م' : 'KoraFlix Gold Cinema'}
+              </span>
+            </div>
+
+            {/* Campaign core display */}
+            <div className="relative z-10 max-w-2xl mx-auto text-center space-y-4 my-auto">
+              <h2 className="text-base sm:text-xl md:text-2xl font-black text-rose-450 leading-tight drop-shadow-lg scale-[1.01]">
+                {prerollAd.title}
+              </h2>
+              <p className="text-[11px] text-slate-350 max-w-md mx-auto leading-relaxed">
+                {isRtl 
+                  ? 'يتم تقديم هذا المحتوى مجاناً بدعم وتغطية من شركائنا المعتمدين. اضغط لتصفح الشريحة أو انتظر لتخطي البث.' 
+                  : 'This content is sponsored by authorized partners. Navigate sponsor space or proceed to playback.'}
+              </p>
+              
+              <a
+                href={prerollAd.targetUrl}
+                target={prerollAd.targetUrl.startsWith('http') ? '_blank' : '_self'}
+                rel="noopener noreferrer"
+                onClick={() => adService.recordClick(prerollAd.id)}
+                className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-white hover:bg-rose-100 text-rose-950 font-black text-xs transition-all shadow-xl hover:scale-105"
+              >
+                <span>{isRtl ? 'زيارة موقع الشريك الراعي' : 'Explore Sponsor'}</span>
+                <Sparkles className="h-4 w-4 text-rose-600" />
+              </a>
+            </div>
+
+            {/* Footer timer controls action bar */}
+            <div className="relative z-10 flex items-center justify-between gap-4 mt-auto">
+              <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest hidden sm:inline">
+                {isRtl ? 'حقوق ومصنفات البث الفاخر لعام ٢٠٢٦' : 'CINEMATOGRAPHY REVENUE INTEGRITY'}
+              </span>
+
+              {prerollTimeLeft > 0 ? (
+                <div className={`px-5 py-2.5 rounded-xl bg-slate-950/90 border border-slate-900 text-slate-400 text-xs font-black select-none font-sans flex items-baseline gap-1 animate-pulse ${isRtl ? 'mr-auto' : 'ml-auto'}`}>
+                  <span>{isRtl ? 'تخطي الإعلان خلال' : 'Skip in'}</span>
+                  <span className="text-rose-500 text-sm font-black font-mono mx-1">{prerollTimeLeft}</span>
+                  <span>{isRtl ? 'ثوانٍ' : 'seconds'}</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleSkipPreroll}
+                  className={`px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-black cursor-pointer transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-lg shadow-rose-600/20 ${isRtl ? 'mr-auto' : 'ml-auto'}`}
+                >
+                  <span>{isRtl ? 'تخطي الإعلان والبدء بالفيديو' : 'Skip Advertisement'}</span>
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Core Video Player Elements */}
         <video
           ref={videoRef}
           src={streamUrl}
           className="w-full h-full object-contain"
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={() => !showPreroll && setIsPlaying(!isPlaying)}
           onDoubleClick={handleVideoDoubleTap}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}

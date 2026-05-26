@@ -3,6 +3,7 @@ import { tmdbService, getTMDBApiKey, setTMDBApiKey } from '../services/tmdbServi
 import { MediaItem } from '../types';
 import { MovieCard } from '../components/MovieCard';
 import { ArabicCategoryExplorer } from '../components/ArabicCategoryExplorer';
+import { AdBannerPlacement } from '../components/AdBannerPlacement';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { Play, Flame, Star, Zap, Info, ShieldAlert, Award, ChevronLeft, ChevronRight, Tv, Film, Globe, Sparkles } from 'lucide-react';
@@ -20,6 +21,9 @@ export const Home: React.FC = () => {
   const [recentlyAdded, setRecentlyAdded] = useState<MediaItem[]>([]);
   
   const [loading, setLoading] = useState(true);
+  
+  // Dynamic filter state for Trending & Recently Added sections
+  const [homeGenreFilter, setHomeGenreFilter] = useState<string>('All');
   
   // TMDB key input state
   const [tmdbKey, setTmdbKey] = useState('');
@@ -113,7 +117,15 @@ export const Home: React.FC = () => {
       id: 'most-watched',
       title: t('mostWatched'),
       icon: Flame,
-      items: mostWatched,
+      items: homeGenreFilter === 'All' 
+        ? mostWatched 
+        : mostWatched.filter(item => 
+            item.genres?.some(g => {
+              const canonicalG = g.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const canonicalF = homeGenreFilter.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return canonicalG === canonicalF;
+            })
+          ),
       scrollRef: mostWatchedRef,
       viewAllLink: '/search?sort=popular',
       viewAllText: t('browseAllSearch')
@@ -156,7 +168,15 @@ export const Home: React.FC = () => {
       id: 'recently-added',
       title: t('recentlyAdded'),
       icon: Sparkles,
-      items: recentlyAdded,
+      items: homeGenreFilter === 'All' 
+        ? recentlyAdded 
+        : recentlyAdded.filter(item => 
+            item.genres?.some(g => {
+              const canonicalG = g.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const canonicalF = homeGenreFilter.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return canonicalG === canonicalF;
+            })
+          ),
       scrollRef: recentlyAddedRef
     }
   ];
@@ -274,62 +294,148 @@ export const Home: React.FC = () => {
         <ArabicCategoryExplorer />
       </div>
 
+      {/* Top Native Advertisement Banner */}
+      <AdBannerPlacement position="top" className="my-2" />
+
       {loading ? (
         <div className="py-28 flex flex-col items-center justify-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-500 border-t-transparent"></div>
           <span className="text-xs font-black text-rose-500/70 uppercase tracking-widest animate-pulse">{t('loadingChannels')}</span>
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-12 animate-fade-in">
+          {/* Dynamic Filter Bar for Trending and Recently Added */}
+          <div className="bg-slate-900/40 border border-slate-900/60 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className={`space-y-1.5 ${isRtl ? 'text-right' : 'text-left'}`}>
+              <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse md:justify-start' : 'justify-start'}`}>
+                <Sparkles className="h-4.5 w-4.5 text-rose-500 animate-pulse shrink-0" />
+                <h4 className="text-sm font-black text-white">
+                  {isRtl ? 'فرز وتصفية العروض (شائع ومضاف حديثاً)' : 'Dynamic Content Filter (Trending & New)'}
+                </h4>
+              </div>
+              <p className="text-xs text-slate-400">
+                {isRtl 
+                  ? 'بوابات "الأكثر مشاهدة" و "المضاف حديثاً" التفاعلية جاهزة للتصفية اللحظية حسب جوك المفضل.' 
+                  : 'Filter both the "Most Watched" and "Recently Added" rows dynamically by your favorite genre.'}
+              </p>
+            </div>
+
+            {/* Categories Pills */}
+            <div className={`flex flex-wrap gap-2 items-center ${isRtl ? 'justify-end md:justify-start' : 'justify-start'}`} dir={isRtl ? 'rtl' : 'ltr'}>
+              {[
+                { id: 'All', labelAr: 'الكل', labelEn: 'All' },
+                { id: 'Action', labelAr: 'أكشن', labelEn: 'Action' },
+                { id: 'Drama', labelAr: 'دراما', labelEn: 'Drama' },
+                { id: 'Sci-Fi', labelAr: 'خيال علمي', labelEn: 'Sci-Fi' },
+                { id: 'Comedy', labelAr: 'كوميدي', labelEn: 'Comedy' },
+                { id: 'Thriller', labelAr: 'تشويق', labelEn: 'Thriller' },
+              ].map((gn) => {
+                const isActive = homeGenreFilter === gn.id;
+                return (
+                  <button
+                    key={gn.id}
+                    onClick={() => setHomeGenreFilter(gn.id)}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                      isActive
+                        ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-600/20 scale-[1.03]'
+                        : 'bg-[#0B0B0B] text-slate-400 border-slate-800 hover:text-white hover:border-slate-700 hover:scale-[1.02]'
+                    }`}
+                  >
+                    {isRtl ? gn.labelAr : gn.labelEn}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {rows.map((row) => {
-            if (!row.items || row.items.length === 0) return null;
+            // Check if there were originally items, but filtering made it 0.
+            const originalItems = row.id === 'most-watched' ? mostWatched : row.id === 'recently-added' ? recentlyAdded : row.items;
+            if (!originalItems || originalItems.length === 0) return null;
             const IconComponent = row.icon;
+            const hasItems = row.items && row.items.length > 0;
+
             return (
-              <section key={row.id} className="space-y-4 group/row relative" id={`row-${row.id}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <IconComponent className="h-5 w-5 text-rose-500 shrink-0" />
-                    <h2 className="text-xl font-black text-white tracking-tight">{row.title}</h2>
+              <React.Fragment key={row.id}>
+                <section className="space-y-4 group/row relative" id={`row-${row.id}`}>
+                  <div className={`flex items-center justify-between ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <IconComponent className="h-5 w-5 text-rose-500 shrink-0" />
+                      <h2 className="text-xl font-black text-white tracking-tight">
+                        {row.title}
+                        {homeGenreFilter !== 'All' && (row.id === 'most-watched' || row.id === 'recently-added') && (
+                          <span className="text-xs text-rose-400 font-extrabold mx-2 border border-rose-500/20 bg-rose-500/10 px-2.5 py-0.5 rounded-lg inline-block align-middle">
+                            {isRtl ? `تصفية: ${isRtl ? t(homeGenreFilter.toLowerCase()) : homeGenreFilter}` : `Filter: ${homeGenreFilter}`}
+                          </span>
+                        )}
+                      </h2>
+                    </div>
+                    {row.viewAllLink && (
+                      <Link to={row.viewAllLink} className="text-xs font-black text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wider">
+                        {row.viewAllText || t('browseAllSearch')}
+                      </Link>
+                    )}
                   </div>
-                  {row.viewAllLink && (
-                    <Link to={row.viewAllLink} className="text-xs font-black text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wider">
-                      {row.viewAllText || t('browseAllSearch')}
-                    </Link>
-                  )}
-                </div>
-                
-                {/* Horizontal Scroll Area with Sliding controls */}
-                <div className="relative">
-                  <button
-                    onClick={() => handleScroll(row.scrollRef, isRtl ? 'right' : 'left')}
-                    className="absolute left-[-16px] top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-slate-950/85 border border-slate-900 text-slate-355 hover:text-white flex items-center justify-center shrink-0 z-30 opacity-0 group-hover/row:opacity-100 transition-all shadow-2xl hover:bg-slate-900 cursor-pointer"
-                    id={`btn-prev-${row.id}`}
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
+                  
+                  {/* Horizontal Scroll Area with Sliding controls */}
+                  <div className="relative">
+                    {hasItems && (
+                      <button
+                        onClick={() => handleScroll(row.scrollRef, isRtl ? 'right' : 'left')}
+                        className="absolute left-[-16px] top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-slate-950/85 border border-slate-900 text-slate-300 hover:text-white flex items-center justify-center shrink-0 z-35 opacity-0 group-hover/row:opacity-100 transition-all shadow-2xl hover:bg-slate-900 cursor-pointer"
+                        id={`btn-prev-${row.id}`}
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                    )}
 
-                  <div
-                    ref={row.scrollRef}
-                    className="flex gap-4 overflow-x-auto overflow-y-hidden pb-4 snap-x scrollbar-none snap-mandatory scroll-smooth"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    id={`slider-${row.id}`}
-                  >
-                    {row.items.map((item) => (
-                      <div key={item.id} className="w-40 sm:w-48 shrink-0 snap-start">
-                        <MovieCard item={item} />
+                    {!hasItems ? (
+                      <div className="w-full py-12 text-center bg-slate-900/20 border border-slate-900/60 rounded-3xl flex flex-col items-center justify-center gap-2 max-w-7xl mx-auto shadow-inner">
+                        <Sparkles className="h-6 w-6 text-slate-600 animate-pulse" />
+                        <span className="text-sm text-slate-400 font-extrabold">
+                          {isRtl 
+                            ? `عذراً، لم تتوفر حالياً أي عروض تحت تصنيف "${homeGenreFilter === 'Sci-Fi' ? 'خيال علمي' : t(homeGenreFilter.toLowerCase())}" في هذا القسم` 
+                            : `Sorry, there are no matches for "${homeGenreFilter}" in this section.`}
+                        </span>
+                        <button
+                          onClick={() => setHomeGenreFilter('All')}
+                          className="mt-2 text-xs font-black text-rose-500 hover:text-rose-400 underline decoration-dotted underline-offset-4 cursor-pointer"
+                        >
+                          {isRtl ? 'عرض كل العناوين وتصفير الفلتر' : 'Reset filter and view all'}
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div
+                        ref={row.scrollRef}
+                        className="flex gap-4 overflow-x-auto overflow-y-hidden pb-4 snap-x scrollbar-none snap-mandatory scroll-smooth"
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        id={`slider-${row.id}`}
+                      >
+                        {row.items.map((item) => (
+                          <div key={item.id} className="w-40 sm:w-48 shrink-0 snap-start">
+                            <MovieCard item={item} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-                  <button
-                    onClick={() => handleScroll(row.scrollRef, isRtl ? 'left' : 'right')}
-                    className="absolute right-[-16px] top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-slate-950/85 border border-slate-900 text-slate-355 hover:text-white flex items-center justify-center shrink-0 z-30 opacity-0 group-hover/row:opacity-100 transition-all shadow-2xl hover:bg-slate-900 cursor-pointer"
-                    id={`btn-next-${row.id}`}
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
-              </section>
+                    {hasItems && (
+                      <button
+                        onClick={() => handleScroll(row.scrollRef, isRtl ? 'left' : 'right')}
+                        className="absolute right-[-16px] top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-slate-950/85 border border-slate-900 text-slate-300 hover:text-white flex items-center justify-center shrink-0 z-35 opacity-0 group-hover/row:opacity-100 transition-all shadow-2xl hover:bg-slate-900 cursor-pointer"
+                        id={`btn-next-${row.id}`}
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                {/* Middle Native Ad Banner Placement right after the spotlight rows (most-watched) */}
+                {row.id === 'most-watched' && (
+                  <AdBannerPlacement position="middle" className="my-4" />
+                )}
+              </React.Fragment>
             );
           })}
         </div>

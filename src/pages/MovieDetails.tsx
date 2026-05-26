@@ -5,6 +5,7 @@ import { MediaItem, MovieComment } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MovieCard } from '../components/MovieCard';
+import { AdBannerPlacement } from '../components/AdBannerPlacement';
 import { Star, Play, Heart, Plus, Check, Calendar, Clock, MessageCircle, CalendarDays, User, ArrowLeft, ArrowRight, Share2, Film, Tv, Sparkles, Youtube, CheckCircle2 } from 'lucide-react';
 
 export const MovieDetails: React.FC = () => {
@@ -374,6 +375,9 @@ export const MovieDetails: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Sidebar sponsor sponsorship ad card */}
+              <AdBannerPlacement position="sidebar" className="mt-4" />
             </div>
           </div>
         )}

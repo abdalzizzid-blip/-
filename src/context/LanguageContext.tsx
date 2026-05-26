@@ -147,6 +147,26 @@ const dictionary: Record<Language, Record<string, string>> = {
     historyLabel: 'Stream History & Progress',
     noHistoryItems: "You haven't streamed any titles yet!",
     tier: 'Subscription Tier',
+
+    // Genres
+    action: 'Action',
+    adventure: 'Adventure',
+    drama: 'Drama',
+    'sci-fi': 'Sci-Fi',
+    scifi: 'Sci-Fi',
+    horror: 'Horror',
+    comedy: 'Comedy',
+    history: 'History',
+    animation: 'Animation',
+    fantasy: 'Fantasy',
+    biography: 'Biography',
+    mystery: 'Mystery',
+    thriller: 'Thriller',
+    romantic: 'Romantic',
+    crime: 'Crime',
+    family: 'Family',
+    arabic: 'Arabic',
+    all: 'All',
   },
   ar: {
     // Navigation & Layout
@@ -283,6 +303,26 @@ const dictionary: Record<Language, Record<string, string>> = {
     historyLabel: 'سجل العرض وتقدم المتابعة',
     noHistoryItems: 'لم تقم ببدء بث أي عنوان بعد، دعنا نبدأ باختيار روائع الليلة!',
     tier: 'فئة الإشتراك',
+
+    // Genres / التصنيفات
+    action: 'أكشن',
+    adventure: 'مغامرة',
+    drama: 'دراما',
+    'sci-fi': 'خيال علمي',
+    scifi: 'خيال علمي',
+    horror: 'رعب',
+    comedy: 'كوميدي',
+    history: 'تاريخي',
+    animation: 'رسوم متحركة',
+    fantasy: 'خيال / أساطير',
+    biography: 'سيرة ذاتية',
+    mystery: 'غموض',
+    thriller: 'تشويق وإثارة',
+    romantic: 'رومانسية',
+    crime: 'جريمة',
+    family: 'عائلي',
+    arabic: 'عربي',
+    all: 'الكل',
   }
 };
 

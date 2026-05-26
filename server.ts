@@ -478,22 +478,40 @@ app.post('/api/gemini/chat', async (req, res) => {
 
 let serverAds = [
   {
-    id: 'ad1',
-    title: 'اشتراك سينما فيجن بريميوم السنوي بخصم 50% لفترة محدودة!',
-    imageUrl: 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd86?q=80&w=1200&auto=format&fit=crop',
-    targetUrl: 'https://google.com',
+    id: 'ad-home-top',
+    title: 'تخفيضات عيد الفطر: باقة كورا فليكس VIP بريميوم بخصم 50%',
+    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&fit=crop',
+    targetUrl: '/profile',
     position: 'top' as const,
     isActive: true,
-    clicksCount: 38
+    clicksCount: 142
   },
   {
-    id: 'ad2',
-    title: 'شاهد الآن أحدث عروض الموسم على شاشتك بدقة 4K فائقة الوضوح',
-    imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1200&auto=format&fit=crop',
-    targetUrl: 'https://google.com',
+    id: 'ad-home-middle',
+    title: 'تغطية البث المباشر الكبرى: بطولة دوري أبطال أوروبا وسوبر ديربي إيطاليا ليلة اليوم بدقة 4K',
+    imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&fit=crop',
+    targetUrl: '/',
     position: 'middle' as const,
     isActive: true,
-    clicksCount: 19
+    clicksCount: 89
+  },
+  {
+    id: 'ad-details-sidebar',
+    title: 'استمتع بمشاهدة سينمائية خالية من التشويش - اشترك في العضوية بلاتينيوم 💎',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&fit=crop',
+    targetUrl: '/profile',
+    position: 'sidebar' as const,
+    isActive: true,
+    clicksCount: 64
+  },
+  {
+    id: 'ad-video-preroll',
+    title: 'رعاية الشريك الرياضي الرسمي: تابع أحدث مباريات كأس العالم للأندية مباشرة وحصرياً',
+    imageUrl: 'https://images.unsplash.com/photo-1542204172-e7052809a86e?q=80&w=1200&fit=crop',
+    targetUrl: 'https://www.google.com',
+    position: 'footer' as const, // Also serves as preroll sponsorship
+    isActive: true,
+    clicksCount: 215
   }
 ];
 
@@ -504,7 +522,7 @@ app.get('/api/ads', (req, res) => {
 
 // Create new ad
 app.post('/api/ads', (req, res) => {
-  const { title, imageUrl, targetUrl, position } = req.body;
+  const { id, title, imageUrl, targetUrl, position, isActive, clicksCount } = req.body;
 
   if (!title || !imageUrl) {
     res.status(400).json({ success: false, message: 'العنوان وصورة الإعلان مطلوبة' });
@@ -512,17 +530,40 @@ app.post('/api/ads', (req, res) => {
   }
 
   const newAd = {
-    id: `ad_${Date.now()}`,
+    id: id || `ad_${Date.now()}`,
     title,
     imageUrl,
     targetUrl: targetUrl || '#',
     position: position || 'top',
-    isActive: true,
-    clicksCount: 0
+    isActive: isActive !== undefined ? !!isActive : true,
+    clicksCount: clicksCount !== undefined ? Number(clicksCount) : 0
   };
 
   serverAds.push(newAd);
   res.json({ success: true, ad: newAd });
+});
+
+// Update an existing ad completely
+app.put('/api/ads/:id', (req, res) => {
+  const { id } = req.params;
+  const { title, imageUrl, targetUrl, position, isActive, clicksCount } = req.body;
+  const adIndex = serverAds.findIndex(a => a.id === id);
+  if (adIndex === -1) {
+    res.status(404).json({ success: false, message: 'الإعلان غير موجود' });
+    return;
+  }
+  
+  serverAds[adIndex] = {
+    ...serverAds[adIndex],
+    title: title !== undefined ? title : serverAds[adIndex].title,
+    imageUrl: imageUrl !== undefined ? imageUrl : serverAds[adIndex].imageUrl,
+    targetUrl: targetUrl !== undefined ? targetUrl : serverAds[adIndex].targetUrl,
+    position: position !== undefined ? position : serverAds[adIndex].position,
+    isActive: isActive !== undefined ? !!isActive : serverAds[adIndex].isActive,
+    clicksCount: clicksCount !== undefined ? Number(clicksCount) : serverAds[adIndex].clicksCount
+  };
+  
+  res.json({ success: true, ad: serverAds[adIndex] });
 });
 
 // Toggle ad status
@@ -537,7 +578,7 @@ app.put('/api/ads/:id/toggle', (req, res) => {
   res.json({ success: true, ad });
 });
 
-// Increment click count
+// Increment click count (Analytics Event Endpoint)
 app.post('/api/ads/:id/click', (req, res) => {
   const { id } = req.params;
   const ad = serverAds.find(a => a.id === id);
@@ -547,6 +588,28 @@ app.post('/api/ads/:id/click', (req, res) => {
   }
   ad.clicksCount += 1;
   res.json({ success: true, clicksCount: ad.clicksCount });
+});
+
+// Real-Time Click Tracking Pixel Endpoint (Serves 1x1 transparent GIF)
+app.get('/api/ads/:id/pixel.gif', (req, res) => {
+  const { id } = req.params;
+  const ad = serverAds.find(a => a.id === id);
+  if (ad) {
+    ad.clicksCount += 1;
+  }
+  
+  // 1x1 transparent GIF base64 buffer
+  const pixelHex = '47494638396101000100800000ffffffffffff21f90401000000002c00000000010001000002024401003b';
+  const pixelBuffer = Buffer.from(pixelHex, 'hex');
+  
+  res.writeHead(200, {
+    'Content-Type': 'image/gif',
+    'Content-Length': pixelBuffer.length,
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  res.end(pixelBuffer);
 });
 
 // Delete an ad banner
