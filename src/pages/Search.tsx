@@ -4,7 +4,7 @@ import { tmdbService } from '../services/tmdbService';
 import { MediaItem } from '../types';
 import { MovieCard } from '../components/MovieCard';
 import { useLanguage } from '../context/LanguageContext';
-import { Search as SearchIcon, Film, Tv, Radio, Sparkles, Flame, Star, Compass, X, Check, Eye, HelpCircle } from 'lucide-react';
+import { Search as SearchIcon, Film, Tv, Radio, Sparkles, Flame, Star, Compass, X, Check, Eye, HelpCircle, Mic, MicOff } from 'lucide-react';
 
 export const Search: React.FC = () => {
   const { lang, t, dir } = useLanguage();
@@ -23,6 +23,57 @@ export const Search: React.FC = () => {
   // Suggested placeholders for empty states
   const [suggestions, setSuggestions] = useState<MediaItem[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Web Speech API Voice Search State & Configuration
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const isSpeechSupported = !!SpeechRecognition;
+
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+
+  useEffect(() => {
+    if (isSpeechSupported) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = lang === 'ar' ? 'ar-SA' : 'en-US';
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setQuery(transcript);
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(rec);
+    }
+  }, [lang]);
+
+  const toggleListening = () => {
+    if (!recognition) return;
+    if (isListening) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error('Failed to start recognition:', e);
+      }
+    }
+  };
 
   // 1. Debounce Input Typing for Instant Live Search (300ms)
   useEffect(() => {
@@ -156,22 +207,52 @@ export const Search: React.FC = () => {
             placeholder={isRtl ? 'ابحث عن عناوين فخمة، أسماء مسلسلات، مخرجين طواقم العمل...' : t('searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={`w-full bg-[#151515] border-2 border-slate-900 focus:outline-none focus:border-rose-600/60 rounded-2xl py-4.5 ${isRtl ? 'pr-14 pl-14' : 'pl-14 pr-14'} text-sm sm:text-base text-white placeholder-slate-600 focus:ring-1 focus:ring-rose-500/15 transition-all font-semibold font-sans shadow-2xl`}
+            className={`w-full bg-[#151515] border-2 border-slate-900 focus:outline-none focus:border-rose-600/60 rounded-2xl py-4.5 ${isRtl ? 'pr-14 pl-28' : 'pl-14 pr-28'} text-sm sm:text-base text-white placeholder-slate-600 focus:ring-1 focus:ring-rose-500/15 transition-all font-semibold font-sans shadow-2xl`}
           />
           <div className={`absolute ${isRtl ? 'right-5' : 'left-5'} top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none`}>
             <SearchIcon className="h-5.5 w-5.5" />
           </div>
 
-          {/* Direct Clear Button index */}
-          {query.trim() && (
-            <button
-              onClick={handleClear}
-              className={`absolute ${isRtl ? 'left-5' : 'right-5'} top-1/2 -translate-y-1/2 p-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer`}
-              title={isRtl ? 'تصفية حقل الكتابة' : 'Clear search text'}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          {/* Controls Container for Clear & Microphones */}
+          <div className={`absolute ${isRtl ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 flex items-center gap-2`}>
+            {isSpeechSupported && (
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`p-2 rounded-full transition-all border cursor-pointer select-none relative ${
+                  isListening
+                    ? 'bg-rose-600 text-white border-rose-500 animate-pulse scale-110 shadow-lg shadow-rose-600/30'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-rose-500 hover:border-rose-500/20'
+                }`}
+                title={isListening 
+                  ? (isRtl ? 'إيقاف الاستماع الآن' : 'Stop listening now') 
+                  : (isRtl ? 'البحث بالصوت' : 'Voice Search')
+                }
+              >
+                {isListening ? (
+                  <>
+                    <MicOff className="h-4 w-4" />
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </span>
+                  </>
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </button>
+            )}
+
+            {query.trim() && (
+              <button
+                onClick={handleClear}
+                className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title={isRtl ? 'تصفية حقل الكتابة' : 'Clear search text'}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Suggestion keywords search pills */}

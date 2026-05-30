@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Film, Home, Search, Heart, User, Shield, LogOut, Menu, X, Settings, Tv, Flame, Crown, Sparkles, Compass, WifiOff } from 'lucide-react';
+import { Film, Home, Search, Heart, User, Shield, LogOut, Menu, X, Settings, Tv, Flame, Crown, Sparkles, Compass, WifiOff, MessageSquarePlus, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -13,6 +13,23 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [langToast, setLangToast] = useState<{ text: string } | null>(null);
+
+  const isFirstRender = React.useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const text = lang === 'ar' 
+      ? 'تم تحديث لغة الواجهة إلى العربية 🇸🇦' 
+      : 'Language updated to English 🇺🇸';
+    setLangToast({ text });
+    const timer = setTimeout(() => {
+      setLangToast(null);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [lang]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -43,17 +60,30 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     { to: '/tv-series', label: t('tvSeriesNav'), icon: Tv },
     { to: '/search?sort=popular', label: t('mostWatchedNav'), icon: Flame },
     { to: '/watchlist', label: t('watchlistNav'), icon: Heart },
+    { to: '/request', label: t('requestNav'), icon: MessageSquarePlus },
     { to: '/profile', label: t('profileNav'), icon: User },
   ];
-
-  const toggleLanguage = () => {
-    setLang(lang === 'ar' ? 'en' : 'ar');
-  };
 
   const isRtl = lang === 'ar';
 
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 flex flex-col antialiased selection:bg-rose-600/30 selection:text-white">
+      {/* Dynamic Language Change Toast */}
+      <AnimatePresence>
+        {langToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-[#0e0a15]/95 border border-rose-500/25 shadow-2xl shadow-rose-955/20 text-xs sm:text-sm font-black text-rose-400 flex items-center gap-3 backdrop-blur-md"
+          >
+            <Globe className="h-4 w-4 text-rose-500 animate-[spin_5s_linear_infinite]" />
+            <span>{langToast.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Banner Ticker */}
       <div className={`transition-all duration-300 text-center py-1.5 px-4 text-[10px] sm:text-[11px] font-black tracking-wide text-white uppercase select-none flex items-center justify-center gap-2 overflow-hidden shrink-0 ${
         isOnline 
@@ -98,6 +128,8 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isWatchlist = item.to === '/watchlist';
+              const watchlistCount = user?.watchlist?.length || 0;
               return (
                 <NavLink
                   key={item.to}
@@ -112,6 +144,11 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span>{item.label}</span>
+                  {isWatchlist && watchlistCount > 0 && (
+                    <span className="ms-1.5 px-1.5 py-0.5 rounded-full bg-rose-600 text-[9px] font-black text-white leading-none transition-transform animate-scale-in">
+                      {watchlistCount}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
@@ -128,15 +165,33 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
               </span>
             )}
 
-            {/* Language Switch Switcher */}
-            <button
-              onClick={toggleLanguage}
-              className="px-2.5 py-1.5 rounded-xl text-[10px] font-extrabold bg-slate-900/90 hover:bg-slate-850 border border-slate-800 text-amber-400 hover:text-amber-300 hover:border-amber-400/40 transition-all duration-200 flex items-center gap-1 select-none shadow-inner"
-              title={lang === 'ar' ? 'Switch to English' : 'التحويل للعربية'}
-            >
-              <span>🌐</span>
-              <span>{lang === 'ar' ? 'English' : 'العربية'}</span>
-            </button>
+            {/* Premium Language Pill Segmented Switch */}
+            <div className="flex items-center bg-slate-900/90 border border-slate-800 p-0.5 rounded-xl select-none" id="lang-toggle-container">
+              <button
+                onClick={() => setLang('en')}
+                className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider transition-all duration-200 cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md shadow-rose-600/35'
+                    : 'text-slate-450 hover:text-slate-100'
+                }`}
+                id="lang-btn-en"
+                title="Switch to English"
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang('ar')}
+                className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider transition-all duration-200 cursor-pointer ${
+                  lang === 'ar'
+                    ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md shadow-rose-600/35'
+                    : 'text-slate-450 hover:text-slate-100'
+                }`}
+                id="lang-btn-ar"
+                title="التحويل للعربية"
+              >
+                العربية
+              </button>
+            </div>
 
             {/* Quick Search Toggle */}
             <button
@@ -253,9 +308,44 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 </button>
               </div>
 
+              {/* Mobile Drawer Language Switch */}
+              <div className="bg-slate-900 border border-slate-900 p-1.5 rounded-2xl flex flex-col gap-1.5">
+                <span className="text-[10px] text-slate-400 font-black px-1">🌐 {lang === 'ar' ? 'لغة الواجهة:' : 'Interface Language:'}</span>
+                <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl">
+                  <button
+                    onClick={() => {
+                      setLang('en');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-black transition-all ${
+                      lang === 'en'
+                        ? 'bg-rose-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-100'
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLang('ar');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-black transition-all ${
+                      lang === 'ar'
+                        ? 'bg-rose-600 text-white shadow'
+                        : 'text-slate-450 hover:text-slate-100'
+                    }`}
+                  >
+                    العربية
+                  </button>
+                </div>
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 {navItems.map((item) => {
                   const Icon = item.icon;
+                  const isWatchlist = item.to === '/watchlist';
+                  const watchlistCount = user?.watchlist?.length || 0;
                   return (
                     <NavLink
                       key={item.to}
@@ -270,7 +360,12 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                       }
                     >
                       <Icon className="h-4.5 w-4.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span className="flex-1 text-start">{item.label}</span>
+                      {isWatchlist && watchlistCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-rose-600 text-[10px] font-black text-white leading-none">
+                          {watchlistCount}
+                        </span>
+                      )}
                     </NavLink>
                   );
                 })}

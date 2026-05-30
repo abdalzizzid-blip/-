@@ -52,9 +52,32 @@ self.addEventListener('message', (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       cache.keys().then((requests) => {
         const count = requests.length;
-        // Count approximate bytes
-        let totalSize = 0;
-        event.source.postMessage({ type: 'CACHE_INFO', count });
+        // Distinguish and estimate payload size (since opaque requests have 0 byte bodies)
+        let apiCount = 0;
+        let imageCount = 0;
+        let staticCount = 0;
+        requests.forEach((req) => {
+          if (req.url.includes('api.themoviedb.org') || req.url.includes('/api/')) {
+            apiCount++;
+          } else if (req.url.match(/\.(png|jpg|jpeg|gif|webp|svg)/i) || req.url.includes('unsplash.com') || req.url.includes('tmdb.org/t/p/')) {
+            imageCount++;
+          } else {
+            staticCount++;
+          }
+        });
+        
+        // Dynamic conservative size modeling of TMDB metadata & cached assets:
+        // TMDB JSON payloads average ~8KB
+        // Poster / Backdrop Images average ~45KB
+        // Local SPA bundle scripts/styles/HTML assets average ~130KB
+        const estimatedSizeKB = (apiCount * 8) + (imageCount * 45) + (staticCount * 130);
+        const sizeMB = parseFloat((estimatedSizeKB / 1024).toFixed(2));
+
+        event.source.postMessage({ 
+          type: 'CACHE_INFO', 
+          count,
+          sizeMB
+        });
       });
     });
   }

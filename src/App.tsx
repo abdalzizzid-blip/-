@@ -15,6 +15,7 @@ import { VideoPlayer } from './pages/VideoPlayer';
 import { LoginRegister } from './pages/LoginRegister';
 import { AdminPanel } from './pages/AdminPanel';
 import { BrandGuidelines } from './pages/BrandGuidelines';
+import { RequestMedia } from './pages/RequestMedia';
 import { SplashScreen } from './components/SplashScreen';
 import AiAssistant from './components/AiAssistant';
 
@@ -65,6 +66,9 @@ export default function App() {
 
               {/* Premium Arabic Brand Guidelines */}
               <Route path="/brand" element={<BrandGuidelines />} />
+
+              {/* User Movies & Tv requests submission */}
+              <Route path="/request" element={<RequestMedia />} />
 
               {/* Catchall return redirect route */}
               <Route path="*" element={<Navigate to="/" replace />} />

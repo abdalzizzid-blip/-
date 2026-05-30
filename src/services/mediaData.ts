@@ -1,6 +1,6 @@
 import { MediaItem } from '../types';
 
-export const mockMediaList: MediaItem[] = [
+const initialMockMediaList: MediaItem[] = [
   {
     id: 'm-1',
     title: 'Dune: Part Two',
@@ -296,3 +296,24 @@ export const mockMediaList: MediaItem[] = [
     ]
   }
 ];
+
+export const mockMediaList: MediaItem[] = (() => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('koraflix_custom_catalog');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error('Failed to parse cached catalog:', e);
+      }
+    }
+  }
+  return [...initialMockMediaList];
+})();
+
+export const saveCatalogToStorage = (items: MediaItem[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('koraflix_custom_catalog', JSON.stringify(items));
+  }
+};
+

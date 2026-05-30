@@ -35,12 +35,72 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "MediaRequest": {
+      "title": "MediaRequest",
+      "description": "A movie or series request submitted by a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the request document."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the requested movie or TV series."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of media, either movie or tv."
+        },
+        "category": {
+          "type": "string",
+          "description": "The genre or category of the media."
+        },
+        "year": {
+          "type": "string",
+          "description": "Release year of the media."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes by the user."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the request (pending, approved, rejected)."
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of the individual who made the request."
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of the individual who made the request."
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the user who made the request."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the request was created."
+        },
+        "adminNotes": {
+          "type": "string",
+          "description": "Feedback notes left by an administrator."
+        }
+      },
+      "required": ["id", "title", "type", "userId", "createdAt", "status"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "UserProfile",
       "description": "Collection storing personalized profile, watchlist, and play history, restricted for access."
+    },
+    "requests/{requestId}": {
+      "schema": "MediaRequest",
+      "description": "Collection for custom movie and tv series requests submitted by users."
     }
   }
 }

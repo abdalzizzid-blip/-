@@ -125,9 +125,11 @@ export const Discover: React.FC = () => {
         }
       }
 
-      setMediaList(results);
+      // Deduplicate results to guarantee robust React key safety
+      const uniqueResults = Array.from(new Map(results.map(item => [item.id, item])).values());
+      setMediaList(uniqueResults);
       setDisplayCount(5); // Reset display limit for infinite scroll simulation
-      setHasMore(results.length > 5);
+      setHasMore(uniqueResults.length > 5);
     } catch (err: any) {
       console.error(err);
       setErrorHeader("Failed to load catalog files. Reverting to backup index.");

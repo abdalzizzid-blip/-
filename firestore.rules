@@ -48,6 +48,15 @@ service cloud.firestore {
              data.history is list && data.history.size() <= 200;
     }
 
+    function isValidMediaRequest(data) {
+      return data.keys().hasAll(['id', 'title', 'type', 'userId', 'createdAt', 'status']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.type is string && (data.type == 'movie' || data.type == 'tv') &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.status is string && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected');
+    }
+
     // Match block for users collection targeting specific profile updates
     match /users/{userId} {
       
@@ -78,6 +87,23 @@ service cloud.firestore {
 
       // Disable deletion of accounts by standard users directly from client-side SDK for state persistence
       allow delete: if isAdmin();
+    }
+
+    // Match block for requests collection
+    match /requests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    isValidId(requestId) &&
+                    isValidMediaRequest(incoming()) &&
+                    incoming().userId == request.auth.uid &&
+                    incoming().status == 'pending';
+      allow update: if isSignedIn() && (
+                    isAdmin() ||
+                    (isOwner(existing().userId) && 
+                     incoming().diff(existing()).affectedKeys().hasOnly(['title', 'type', 'category', 'year', 'notes', 'userName', 'userEmail']) && 
+                     isValidMediaRequest(incoming()))
+                    );
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().userId));
     }
   }
 }

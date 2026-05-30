@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockMediaList } from '../services/mediaData';
+import { mockMediaList, saveCatalogToStorage } from '../services/mediaData';
 import { MediaItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { adService } from '../services/adService';
@@ -40,12 +40,18 @@ import {
 
 // Preset high quality graphics for fast poster/backdrop setup
 const PRESET_GRAPHICS = [
-  { id: 'g1', label: 'ولاد رزق ٣: بطل الحركة', type: 'poster', url: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=400&fit=crop' },
-  { id: 'g2', label: 'الحشاشين: قلعة ألموت', type: 'backdrop', url: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?q=80&w=1200&fit=crop' },
-  { id: 'g3', label: 'مسلسلات رمضان: ألوان شعبية', type: 'poster', url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=400&fit=crop' },
-  { id: 'g4', label: 'استديو هوليوود: عتيق', type: 'backdrop', url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=1200&fit=crop' },
-  { id: 'g5', label: 'الفيل الأزرق ٢: غموض عريض', type: 'poster', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&fit=crop' },
-  { id: 'g6', label: 'الخيال العلمي الكوني البراق', type: 'backdrop', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&fit=crop' }
+  { id: 'g1', label: 'ولاد رزق ٣', type: 'poster', url: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=400&fit=crop' },
+  { id: 'g2', label: 'الحشاشين قلعة ألموت', type: 'backdrop', url: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?q=80&w=1200&fit=crop' },
+  { id: 'g3', label: 'كثبان Dune 2', type: 'poster', url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=400&fit=crop' },
+  { id: 'g4', label: 'الفضاء الكوني Interstellar', type: 'backdrop', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&fit=crop' },
+  { id: 'g5', label: 'صراع العروش الفخم', type: 'poster', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&fit=crop' },
+  { id: 'g6', label: 'الفيلم الغامض شيرلوك', type: 'backdrop', url: 'https://images.unsplash.com/photo-1453728013993-6d66e9c9123a?q=80&w=1200&fit=crop' },
+  { id: 'g7', label: 'بريكنج باد الوالد الأكبر', type: 'poster', url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=400&fit=crop' },
+  { id: 'g8', label: 'المدينة المضيئة طوكيو', type: 'backdrop', url: 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?q=80&w=1200&fit=crop' },
+  { id: 'g9', label: 'أفلام الحركة والغموض', type: 'poster', url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&fit=crop' },
+  { id: 'g10', label: 'السينما الكلاسيكية العتيقة', type: 'backdrop', url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=1200&fit=crop' },
+  { id: 'g11', label: 'مسلسلات الخيال العلمي بريميوم', type: 'poster', url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=400&fit=crop' },
+  { id: 'g12', label: 'المعركة الملحمية الكبرى', type: 'backdrop', url: 'https://images.unsplash.com/photo-1538370965046-79c0d6907d47?q=80&w=1200&fit=crop' }
 ];
 
 export const AdminPanel: React.FC = () => {
@@ -87,6 +93,25 @@ export const AdminPanel: React.FC = () => {
   const [formIsTrending, setFormIsTrending] = useState<boolean>(true);
   const [formIsPopular, setFormIsPopular] = useState<boolean>(false);
   const [formVideoUrl, setFormVideoUrl] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4');
+
+  // Custom server list state managers
+  const [formServers, setFormServers] = useState<any[]>([]);
+  const [formDownloadServers, setFormDownloadServers] = useState<any[]>([]);
+  const [formEpisodes, setFormEpisodes] = useState<any[]>([]);
+  
+  // Temporary inputs to add an item to the states
+  const [tempServerName, setTempServerName] = useState('');
+  const [tempServerUrl, setTempServerUrl] = useState('');
+  const [tempDownloadName, setTempDownloadName] = useState('');
+  const [tempDownloadUrl, setTempDownloadUrl] = useState('');
+  
+  // Episode inputs
+  const [tempEpTitle, setTempEpTitle] = useState('');
+  const [tempEpSeason, setTempEpSeason] = useState(1);
+  const [tempEpNumber, setTempEpNumber] = useState(1);
+  const [tempEpDuration, setTempEpDuration] = useState('45m');
+  const [tempEpVideoUrl, setTempEpVideoUrl] = useState('');
+
 
   // Interactive Banners database representation
   const [banners, setBanners] = useState([
@@ -199,10 +224,14 @@ export const AdminPanel: React.FC = () => {
           isExclusive: formIsExclusive,
           isTrending: formIsTrending,
           isPopular: formIsPopular,
-          videoUrl: formVideoUrl
+          videoUrl: formVideoUrl,
+          servers: formServers,
+          downloadServers: formDownloadServers,
+          episodes: formType === 'tv' ? formEpisodes : undefined
         };
 
         mockMediaList[targetIndex] = updatedItem;
+        saveCatalogToStorage(mockMediaList);
         setCatalog([...mockMediaList]);
         triggerToast(isRtl ? `تم تحديث المادة "${formTitle}" وتثبيتها بنجاح ⚡` : `Successfully modified "${formTitle}"!`);
         resetForm();
@@ -231,12 +260,15 @@ export const AdminPanel: React.FC = () => {
         isArabic: formGenres.toLowerCase().includes('arabic') || /[\u0600-\u06FF]/.test(formTitle),
         videoUrl: formVideoUrl,
         trailerUrl: 'https://www.youtube.com/embed/Way9Dexny3w',
-        servers: [
-          { id: 'ep-1', name: 'خادم كورا الإستراتيجي المميز', url: formVideoUrl }
-        ]
+        servers: formServers.length > 0 ? formServers : [
+          { id: `srv-${Date.now()}-1`, name: 'سيرفر البث الافتراضي الأول', url: formVideoUrl }
+        ],
+        downloadServers: formDownloadServers,
+        episodes: formType === 'tv' ? formEpisodes : undefined
       };
 
       mockMediaList.unshift(newItem);
+      saveCatalogToStorage(mockMediaList);
       setCatalog([...mockMediaList]);
       triggerToast(isRtl ? `تم نشر العمل الجديد "${formTitle}" بنجاح في المنصة! 🎉` : `Successfully published "${formTitle}"!`);
       resetForm();
@@ -263,6 +295,9 @@ export const AdminPanel: React.FC = () => {
     setFormIsTrending(!!item.isTrending);
     setFormIsPopular(!!item.isPopular);
     setFormVideoUrl(item.videoUrl || '');
+    setFormServers(item.servers || []);
+    setFormDownloadServers(item.downloadServers || []);
+    setFormEpisodes(item.episodes || []);
     
     // Smoothly focus/navigate to top form panel
     const element = document.getElementById('form-pinnacle');
@@ -271,7 +306,7 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = (targetTab?: string) => {
     setIsEditing(false);
     setEditingId(null);
     setFormTitle('');
@@ -280,6 +315,33 @@ export const AdminPanel: React.FC = () => {
     setFormIsExclusive(true);
     setFormIsTrending(true);
     setFormIsPopular(false);
+    setFormVideoUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4');
+    setFormServers([]);
+    setFormDownloadServers([]);
+    setFormEpisodes([]);
+    setTempServerName('');
+    setTempServerUrl('');
+    setTempDownloadName('');
+    setTempDownloadUrl('');
+    setTempEpTitle('');
+    setTempEpVideoUrl('');
+    
+    // Set fallback graphics and specifications to prevent bleed from past edits
+    setFormPosterUrl('https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&fit=crop');
+    setFormBackdropUrl('https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&fit=crop');
+    setFormGenres('Action, Drama, Arabic');
+    setFormCast('كريم عبدالعزيز, أحمد عز');
+    setFormDirector('مروان حامد');
+    setFormRating(8.5);
+    setFormDuration('2h 15m');
+    setFormSeasonsCount(1);
+
+    const currentTab = targetTab || activeTab;
+    if (currentTab === 'movies') {
+      setFormType('movie');
+    } else if (currentTab === 'series') {
+      setFormType('tv');
+    }
   };
 
   const handleDeleteItem = (id: string, name: string) => {
@@ -287,9 +349,21 @@ export const AdminPanel: React.FC = () => {
       const idx = mockMediaList.findIndex(e => e.id === id);
       if (idx > -1) {
         mockMediaList.splice(idx, 1);
+        saveCatalogToStorage(mockMediaList);
         setCatalog([...mockMediaList]);
         triggerToast(isRtl ? 'تم حذف العنصر بنجاح من الخوادم الرئيسية.' : 'Deleted catalog item successfully.', false);
       }
+    }
+  };
+
+  const handleWipeDefaultCatalog = () => {
+    if (window.confirm(isRtl ? 'هل تريد حقاً حذف وإزالة جميع المواد الافتراضية والمسلسلات المسبقة التنشيط لتأسيس كتالوج فارغ مخصص لملفاتك؟' : 'Are you sure you want to delete all pre-loaded media templates and start with a completely customized blank catalog?')) {
+      const customItems = mockMediaList.filter(item => !item.id.startsWith('m-') && !item.id.startsWith('s-'));
+      mockMediaList.length = 0;
+      mockMediaList.push(...customItems);
+      saveCatalogToStorage(mockMediaList);
+      setCatalog([...mockMediaList]);
+      triggerToast(isRtl ? 'تم إزالة كافة المواد الافتراضية بنجاح!' : 'Wiped reference mock items successfully!', true);
     }
   };
 
@@ -297,6 +371,7 @@ export const AdminPanel: React.FC = () => {
     const item = mockMediaList.find(e => e.id === id);
     if (item) {
       item.isExclusive = !item.isExclusive;
+      saveCatalogToStorage(mockMediaList);
       setCatalog([...mockMediaList]);
       triggerToast(isRtl ? `تحديث طابع التميز لـ "${item.title}" ✨` : 'Toggled Spotlight status.');
     }
@@ -544,7 +619,7 @@ export const AdminPanel: React.FC = () => {
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  resetForm();
+                  resetForm(tab.id);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   isActive 
@@ -869,57 +944,151 @@ export const AdminPanel: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       
                       {/* Poster URL */}
-                      <div className="space-y-1 text-right">
-                        <label className="text-[10px] sm:text-xs font-black text-slate-450 uppercase tracking-wider block">
-                          {isRtl ? 'رابط بوستر العمل طولي (Poster URL):' : 'Vertical Graphic Poster Link:'}
-                        </label>
-                        <input
-                          type="text"
-                          value={formPosterUrl}
-                          onChange={(e) => setFormPosterUrl(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-500 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-300 font-mono"
-                        />
+                      <div className="space-y-1 text-right flex flex-col justify-between">
+                        <div>
+                          <label className="text-[10px] sm:text-xs font-black text-slate-450 uppercase tracking-wider block">
+                            {isRtl ? 'رابط بوستر العمل طولي (Poster URL):' : 'Vertical Graphic Poster Link:'}
+                          </label>
+                          <input
+                            type="text"
+                            value={formPosterUrl}
+                            onChange={(e) => setFormPosterUrl(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-500 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-300 font-mono"
+                          />
+                        </div>
+                        <div className="pt-1.5 flex items-center justify-between gap-2 bg-slate-950/45 p-2 rounded-xl border border-slate-900/60">
+                          <span className="text-[9px] text-slate-400">{isRtl ? 'لديك صورة بجهازك خالية؟' : 'Have a local poster image?'}</span>
+                          <label className="bg-rose-600/10 hover:bg-rose-600/25 border border-rose-500/25 px-2.5 py-1 rounded-lg text-[9px] font-black text-rose-450 hover:text-white transition-all cursor-pointer">
+                            <span>{isRtl ? '📁 ارفع صورة' : '📁 Upload Local'}</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setFormPosterUrl(event.target.result as string);
+                                      triggerToast(isRtl ? 'تم رفع البوستر بنجاح وغمر المحتوى!' : 'Poster loaded and cached successfully!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
 
                       {/* Backdrop URL */}
-                      <div className="space-y-1 text-right">
-                        <label className="text-[10px] sm:text-xs font-black text-slate-450 uppercase tracking-wider block">
-                          {isRtl ? 'رابط خلفية العمل السينمائية عريض (Backdrop URL):' : 'Horizontal Graphic Backdrop Link:'}
-                        </label>
-                        <input
-                          type="text"
-                          value={formBackdropUrl}
-                          onChange={(e) => setFormBackdropUrl(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-500 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-300 font-mono"
-                        />
+                      <div className="space-y-1 text-right flex flex-col justify-between">
+                        <div>
+                          <label className="text-[10px] sm:text-xs font-black text-slate-450 uppercase tracking-wider block">
+                            {isRtl ? 'رابط خلفية العمل السينمائية عريض (Backdrop URL):' : 'Horizontal Graphic Backdrop Link:'}
+                          </label>
+                          <input
+                            type="text"
+                            value={formBackdropUrl}
+                            onChange={(e) => setFormBackdropUrl(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-500 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-300 font-mono"
+                          />
+                        </div>
+                        <div className="pt-1.5 flex items-center justify-between gap-2 bg-slate-950/45 p-2 rounded-xl border border-slate-900/60">
+                          <span className="text-[9px] text-slate-400">{isRtl ? 'لديك خلفية بجهازك خالية؟' : 'Have a local backdrop image?'}</span>
+                          <label className="bg-[#7052ff]/10 hover:bg-[#7052ff]/25 border border-[#7052ff]/25 px-2.5 py-1 rounded-lg text-[9px] font-black text-[#9c8eff] hover:text-white transition-all cursor-pointer">
+                            <span>{isRtl ? '📁 ارفع خلفية' : '📁 Upload Local'}</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setFormBackdropUrl(event.target.result as string);
+                                      triggerToast(isRtl ? 'تم رفع الخلفية بنجاح وغمر المحتوى!' : 'Backdrop loaded and cached successfully!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
 
                     </div>
 
                     {/* Pre-arranged beautiful template presets click selection */}
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-900 space-y-2">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block text-right">
-                        {isRtl ? '⚡ اضغط لاختيار بوسترات رائعة مسبقة التجهيز (محاكاة الرفع الفوري):' : '⚡ Single-click Graphic presets simulation:'}
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {PRESET_GRAPHICS.map((p) => (
-                          <button
-                            type="button"
-                            key={p.id}
-                            onClick={() => {
-                              if (p.type === 'poster') {
-                                setFormPosterUrl(p.url);
-                              } else {
-                                setFormBackdropUrl(p.url);
-                              }
-                              triggerToast(isRtl ? `تم اختيار ورسم "${p.label}"` : `Applied preset graphic.`);
-                            }}
-                            className="bg-slate-900/60 hover:bg-slate-900 border border-slate-905 hover:border-slate-800 p-2 rounded-xl text-[10px] font-black text-slate-400 text-right flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <span className="h-2 w-2 rounded-full bg-rose-500 inline-block" />
-                            <span className="truncate">{p.label} ({p.type === 'poster' ? 'بوستر' : 'خلفية'})</span>
-                          </button>
-                        ))}
+                    <div className="bg-[#0B0B0B]/60 p-5 rounded-2xl border border-slate-900 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-905 pb-2">
+                        <span className="text-[10px] font-black font-sans uppercase tracking-widest text-[#9C94B8] block">
+                          {isRtl ? '🖼️ معرض الصور المسبقة المعتمدة لتجهيز المحتوى فورا:' : '🖼️ Certified Graphical Assets Gallery:'}
+                        </span>
+                        <span className="text-[9px] font-bold text-rose-500 font-sans border border-rose-500/20 bg-rose-500/5 px-2 py-0.5 rounded-full">
+                          {isRtl ? 'تم التحقق من جميع الروابط' : 'Verified CDN Nodes'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {PRESET_GRAPHICS.map((p) => {
+                          const isPoster = p.type === 'poster';
+                          return (
+                            <div 
+                              key={p.id} 
+                              className="bg-slate-950/80 rounded-xl overflow-hidden border border-slate-900 hover:border-slate-800 transition-all flex flex-col group"
+                            >
+                              {/* Thumbnail preview aspect with nice hover effect */}
+                              <div className="relative aspect-[16/10] overflow-hidden bg-slate-905">
+                                <img 
+                                  src={p.url} 
+                                  alt={p.label} 
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                  referrerPolicy="no-referrer"
+                                />
+                                <span className={`absolute top-2 right-2 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full select-none ${
+                                  isPoster ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#7052ff] text-white font-sans'
+                                }`}>
+                                  {isPoster ? (isRtl ? 'بوستر طولي' : 'Poster') : (isRtl ? 'خلفية عريضة' : 'Backdrop')}
+                                </span>
+                              </div>
+                              
+                              {/* Bottom Details with Dual Picker triggers */}
+                              <div className="p-2 w-full space-y-1.5 grow flex flex-col justify-between">
+                                <span className="text-[10px] font-extrabold text-white truncate block text-right">
+                                  {p.label}
+                                </span>
+                                
+                                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormPosterUrl(p.url);
+                                      triggerToast(isRtl ? `تم تعيينه كبوستر لـ "${p.label}"` : 'Applied as Vertical Poster.');
+                                    }}
+                                    className="bg-rose-600/10 hover:bg-rose-600/15 border border-rose-500/15 text-rose-450 py-1 rounded-lg text-[9px] font-black select-none transition-colors cursor-pointer text-center"
+                                  >
+                                    {isRtl ? 'تعيين كبوستر' : 'Set Poster'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormBackdropUrl(p.url);
+                                      triggerToast(isRtl ? `تم تعيينه كخلفية لـ "${p.label}"` : 'Applied as Horizontal Backdrop.');
+                                    }}
+                                    className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 py-1 rounded-lg text-[9px] font-black select-none transition-colors cursor-pointer text-center"
+                                  >
+                                    {isRtl ? 'تعيين كخلفية' : 'Set Backdrop'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -979,12 +1148,316 @@ export const AdminPanel: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        placeholder="https://example.com/movie.mp4"
+                        placeholder={isRtl ? "رابط1 || رابط2 || رابط3" : "https://link1.com/movie.mp4 || https://link2.com/movie.mp4"}
                         value={formVideoUrl}
                         onChange={(e) => setFormVideoUrl(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-900 focus:outline-none focus:border-rose-500 rounded-xl px-4 py-3 text-xs sm:text-sm text-emerald-400 font-mono"
                       />
+                      <p className="text-[10px] text-slate-500 leading-normal text-right mt-1">
+                        {isRtl 
+                          ? "💡 ميزة كبرى: تفضل بإدخال روابط سيرفرات متعددة للفيلم تفصلها علامة || (مثال: رابط1 || رابط2). ستحاذى تلقائياً مع خوادم البث المتاحة."
+                          : "💡 Pro Tip: Input distinct streaming links for this movie by separating them with || (e.g. link1 || link2). They will automatically align to matching stream servers."}
+                      </p>
                     </div>
+
+                  </div>
+
+                  {/* MULTI_SERVERS AND EPISODES WORKSPACE */}
+                  <div className="border-t border-slate-900/40 pt-4 space-y-6">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Streaming Servers Manager */}
+                      <div className="bg-[#090909]/80 p-5 rounded-2xl border border-slate-900 space-y-4">
+                        <div className="flex items-center justify-between border-b border-rose-500/10 pb-2">
+                          <span className="text-xs font-black text-[#9C94B8] flex items-center gap-1.5 pb-0.5">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            {isRtl ? '📺 سيرفرات البث الإضافية (سلسلة تشغيل مستقلة):' : '📺 Custom Video Streaming Servers:'}
+                          </span>
+                        </div>
+                        
+                        {/* Current Server Lists */}
+                        {formServers.length === 0 ? (
+                          <div className="text-center py-4 bg-slate-950/40 rounded-xl text-[10px] text-slate-550 italic">
+                            {isRtl ? 'لا توجد سيرفرات بث مضافة، سيتم استخدام الرابط الافتراضي.' : 'No additional streaming servers configured yet.'}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                            {formServers.map((s, idx) => (
+                              <div key={s.id || idx} className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-905 text-right">
+                                <div className="text-right truncate max-w-[80%] space-y-0.5">
+                                  <span className="text-xs font-bold text-white block">{s.name}</span>
+                                  <span className="text-[10px] text-emerald-450 font-mono block truncate">{s.url}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormServers(formServers.filter((_, i) => i !== idx));
+                                    triggerToast(isRtl ? 'تم حذف السيرفر للتأكيد.' : 'Removed streaming server.');
+                                  }}
+                                  className="text-[10px] font-black text-rose-500 hover:text-white bg-rose-550/10 hover:bg-rose-650 px-2 py-1 rounded-md cursor-pointer transition-all"
+                                >
+                                  {isRtl ? 'حذف' : 'Delete'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add Server form fields */}
+                        <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-905 space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder={isRtl ? 'اسم السيرفر (مثل: سيرفر VIP)' : 'Server Name (e.g. Server VIP)'}
+                              value={tempServerName}
+                              onChange={(e) => setTempServerName(e.target.value)}
+                              className="bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-[11px] text-white text-right"
+                            />
+                            <input
+                              type="text"
+                              placeholder={isRtl ? 'رابط خادم البث (MP4/HLS):' : 'Direct Video Url:'}
+                              value={tempServerUrl}
+                              onChange={(e) => setTempServerUrl(e.target.value)}
+                              className="bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 font-mono text-right"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!tempServerName.trim() || !tempServerUrl.trim()) {
+                                triggerToast(isRtl ? 'يرجى كتابة الاسم والرابط بالكامل!' : 'Please fill all server credentials!', false);
+                                return;
+                              }
+                              setFormServers([...formServers, { id: `srv-${Date.now()}`, name: tempServerName.trim(), url: tempServerUrl.trim() }]);
+                              setTempServerName('');
+                              setTempServerUrl('');
+                              triggerToast(isRtl ? 'تم إضافة سيرفر البث لقائمة العمل ✅' : 'Added streaming server successfully.');
+                            }}
+                            className="w-full bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 hover:border-rose-500/30 text-rose-400 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center"
+                          >
+                            ➕ {isRtl ? 'إضافة سيرفر البث' : 'Add Stream Server'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Download Servers Manager */}
+                      <div className="bg-[#090909]/80 p-5 rounded-2xl border border-slate-900 space-y-4">
+                        <div className="flex items-center justify-between border-b border-rose-500/10 pb-2">
+                          <span className="text-xs font-black text-[#9C94B8] flex items-center gap-1.5 pb-0.5">
+                            <span className="h-2 w-2 rounded-full bg-amber-505 animate-pulse" />
+                            {isRtl ? '📥 سيرفرات وروابط التحميل المباشرة:' : '📥 Custom Direct Download Servers:'}
+                          </span>
+                        </div>
+                        
+                        {/* Current Download Lists */}
+                        {formDownloadServers.length === 0 ? (
+                          <div className="text-center py-4 bg-slate-950/40 rounded-xl text-[10px] text-slate-550 italic">
+                            {isRtl ? 'لا توجد روابط تحميل مضافة للكتالوج حتى الآن.' : 'No download links configured yet.'}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                            {formDownloadServers.map((s, idx) => (
+                              <div key={s.id || idx} className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-905 text-right">
+                                <div className="text-right truncate max-w-[80%] space-y-0.5">
+                                  <span className="text-xs font-bold text-white block">{s.name}</span>
+                                  <span className="text-[10px] text-amber-500 font-mono block truncate">{s.url}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormDownloadServers(formDownloadServers.filter((_, i) => i !== idx));
+                                    triggerToast(isRtl ? 'تم حذف رابط التحميل.' : 'Removed download link.');
+                                  }}
+                                  className="text-[10px] font-black text-rose-500 hover:text-white bg-rose-550/10 hover:bg-rose-650 px-2 py-1 rounded-md cursor-pointer transition-all"
+                                >
+                                  {isRtl ? 'حذف' : 'Delete'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add Download form fields */}
+                        <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-905 space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder={isRtl ? 'جودة وتفاصيل الملف (مثل: 1080p FHD)' : 'Resolution & Mirror (e.g. 1080p FHD)'}
+                              value={tempDownloadName}
+                              onChange={(e) => setTempDownloadName(e.target.value)}
+                              className="bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-[11px] text-white text-right"
+                            />
+                            <input
+                              type="text"
+                              placeholder={isRtl ? 'رابط ملف التحميل المباشر:' : 'Direct Download Link URL:'}
+                              value={tempDownloadUrl}
+                              onChange={(e) => setTempDownloadUrl(e.target.value)}
+                              className="bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 font-mono text-right"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!tempDownloadName.trim() || !tempDownloadUrl.trim()) {
+                                triggerToast(isRtl ? 'يرجى كتابة الاسم ورابط التحميل!' : 'Please fill all download details!', false);
+                                return;
+                              }
+                              setFormDownloadServers([...formDownloadServers, { id: `dl-${Date.now()}`, name: tempDownloadName.trim(), url: tempDownloadUrl.trim() }]);
+                              setTempDownloadName('');
+                              setTempDownloadUrl('');
+                              triggerToast(isRtl ? 'تم إضافة رابط التحميل بنجاح ✅' : 'Added download link successfully.');
+                            }}
+                            className="w-full bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 hover:border-rose-500/30 text-rose-400 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center"
+                          >
+                            ➕ {isRtl ? 'إضافة رابط تحميل مباشر' : 'Add Download Mirror'}
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* TV Episode Workspace Panel (only rendered conditionally if formType === 'tv') */}
+                    {formType === 'tv' && (
+                      <div className="bg-[#090909]/80 p-5 rounded-2xl border border-slate-900 space-y-4">
+                        <div className="flex items-center justify-between border-b border-rose-500/10 pb-2">
+                          <span className="text-xs font-black text-[#9C94B8] flex items-center gap-1.5 pb-0.5">
+                            <span className="h-2 w-2 rounded-full bg-[#7052ff] animate-pulse" />
+                            {isRtl ? '🎞️ فصول وحلقات هذا المسلسل (Episode Database Editor):' : '🎞️ TV Series Episodes Catalog Editor:'}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500">
+                            {isRtl ? `الحلقات المسجلة حالياً: ${formEpisodes.length} حلقة` : `Current episodes: ${formEpisodes.length}`}
+                          </span>
+                        </div>
+
+                        {/* Registered Episode List */}
+                        {formEpisodes.length === 0 ? (
+                          <div className="text-center py-6 bg-slate-950/40 rounded-xl text-[10px] text-slate-550 italic">
+                            {isRtl ? 'لا توجد فصول مضافة بعد. أضف الحلقة الأولى بالأسفل الآن.' : 'No episodes registered. Dynamic list is blank.'}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                            {formEpisodes.map((ep, idx) => (
+                              <div key={ep.id || idx} className="bg-slate-950/60 p-3 rounded-xl border border-slate-905 flex items-center justify-between gap-3 text-right">
+                                <div className="text-right truncate space-y-0.5 max-w-[70%]">
+                                  <span className="text-xs font-black text-white block truncate text-right">
+                                    {isRtl ? `الموسم ${ep.season} - الحلقة ${ep.episodeNumber}:` : `S${ep.season}E${ep.episodeNumber}:`} {ep.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block text-right">
+                                    {isRtl ? `المدة: ${ep.duration}` : `Duration: ${ep.duration}`} || <span className="font-mono text-[9px] text-[#7052ff]">{ep.videoUrl}</span>
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormEpisodes(formEpisodes.filter((_, i) => i !== idx));
+                                    triggerToast(isRtl ? 'تم إزالة الحلقة.' : 'Episode details removed.');
+                                  }}
+                                  className="text-[9px] font-black text-rose-500 hover:text-white bg-rose-550/10 hover:bg-rose-600 px-2 py-1 rounded cursor-pointer transition-all shrink-0 font-sans"
+                                >
+                                  {isRtl ? 'حذف الحلقة' : 'Delete Ep'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Add Episode form inputs */}
+                        <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-905 space-y-3.5">
+                          <span className="text-[10px] font-bold text-slate-450 block text-right">
+                            {isRtl ? '📋 بيانات الحلقة الجديدة المراد إدراجها بالمسلسل:' : '📋 Specifications for the new episode release:'}
+                          </span>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            
+                            <div className="space-y-1 text-right">
+                              <label className="text-[9px] text-slate-400 font-extrabold block">{isRtl ? 'الموسم رقم:' : 'Season Number:'}</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={tempEpSeason}
+                                onChange={(e) => setTempEpSeason(parseInt(e.target.value) || 1)}
+                                className="w-full bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-xs text-white text-right"
+                              />
+                            </div>
+                            
+                            <div className="space-y-1 text-right">
+                              <label className="text-[9px] text-slate-400 font-extrabold block">{isRtl ? 'الحلقة رقم:' : 'Episode Number:'}</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={tempEpNumber}
+                                onChange={(e) => setTempEpNumber(parseInt(e.target.value) || 1)}
+                                className="w-full bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-xs text-white text-right"
+                              />
+                            </div>
+
+                            <div className="space-y-1 text-right">
+                              <label className="text-[9px] text-slate-400 font-extrabold block">{isRtl ? 'مدة الحلقة (مثال: 45m):' : 'Duration (e.g. 45m):'}</label>
+                              <input
+                                type="text"
+                                value={tempEpDuration}
+                                onChange={(e) => setTempEpDuration(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-xs text-white text-right font-sans"
+                              />
+                            </div>
+
+                            <div className="space-y-1 text-right">
+                              <label className="text-[9px] text-slate-400 font-extrabold block">{isRtl ? 'عنوان الحلقة الفرعي:' : 'Episode Title:'}</label>
+                              <input
+                                type="text"
+                                placeholder={isRtl ? 'عهد الصداقة والتحالف...' : 'Alliance of friends...'}
+                                value={tempEpTitle}
+                                onChange={(e) => setTempEpTitle(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-2.5 py-2 text-xs text-white text-right"
+                              />
+                            </div>
+
+                          </div>
+
+                          <div className="space-y-1 text-right">
+                            <label className="text-[9px] text-slate-400 font-extrabold block">{isRtl ? 'رابط خادم البث الخاص بهذه الحلقة مخصص:' : 'Direct Episode streaming Video URL:'}</label>
+                            <input
+                              type="text"
+                              placeholder={isRtl ? "رابط1 || رابط2 || رابط3" : "https://link1.com/ep1 || https://link2.com/ep1"}
+                              value={tempEpVideoUrl}
+                              onChange={(e) => setTempEpVideoUrl(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-950 focus:outline-none focus:border-rose-500 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono text-right"
+                            />
+                            <p className="text-[9px] text-slate-500 leading-normal text-right">
+                              {isRtl 
+                                ? "💡 ميزة كبرى: تفضل بإدخال روابط سيرفرات متعددة لهذه الحلقة محذاة بالفصل بعلامة || (مثال: رابط1 || رابط2). ستحاذى تلقائياً مع خوادم البث المتاحة."
+                                : "💡 Pro Tip: Input distinct streaming links for this single episode by separating them with || (e.g. link1 || link2). They will automatically align to matching stream servers."}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!tempEpTitle.trim() || !tempEpVideoUrl.trim()) {
+                                triggerToast(isRtl ? 'يرجى كتابة عنوان الحلقة ورابط الفيديو!' : 'Both episode title and streaming link are required!', false);
+                                return;
+                              }
+                              const entry = {
+                                id: `ep-${Date.now()}`,
+                                title: tempEpTitle.trim(),
+                                season: tempEpSeason,
+                                episodeNumber: tempEpNumber,
+                                duration: tempEpDuration.trim() || '45m',
+                                videoUrl: tempEpVideoUrl.trim()
+                              };
+                              setFormEpisodes([...formEpisodes, entry]);
+                              setTempEpTitle('');
+                              setTempEpVideoUrl('');
+                              triggerToast(isRtl ? `تم إضافة "${entry.title}" للعمل بنجاح ✓` : 'Injected episode successfully.');
+                            }}
+                            className="w-full bg-[#7052ff]/10 hover:bg-[#7052ff]/20 border border-[#7052ff]/20 hover:border-[#7052ff]/30 text-[#b5a3ff] py-2 rounded-xl text-[11px] font-black transition-all cursor-pointer text-center"
+                          >
+                            ➕ {isRtl ? 'حقن وحفظ الحلقة في قائمة الحلقات' : 'Ingest Episode'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                   </div>
 

@@ -100,136 +100,156 @@ const mapTMDBShow = (tmdbShow: any): MediaItem => {
 export const tmdbService = {
   getTrending: async (type: 'all' | 'movie' | 'tv' = 'all'): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.isTrending && (type === 'all' || item.type === type));
     if (!apiKey) {
-      // Return local trending
-      return mockMediaList.filter(item => item.isTrending);
+      return local;
     }
 
     const t = type === 'all' ? 'all' : type;
     const data = await fetchTMDB(`/trending/${t}/week`);
-    if (!data || !data.results) return [];
+    if (!data || !data.results) return local;
 
-    return data.results.slice(0, 10).map((item: any) => {
+    const remote = data.results.slice(0, 10).map((item: any) => {
       return item.media_type === 'tv' || type === 'tv' ? mapTMDBShow(item) : mapTMDBMovie(item);
     });
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getPopular: async (type: 'movie' | 'tv'): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.isPopular && item.type === type);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.isPopular && item.type === type);
+      return local;
     }
 
     const data = await fetchTMDB(`/${type}/popular`);
-    if (!data || !data.results) return [];
+    if (!data || !data.results) return local;
 
-    return data.results.slice(0, 10).map((item: any) => {
+    const remote = data.results.slice(0, 10).map((item: any) => {
       return type === 'tv' ? mapTMDBShow(item) : mapTMDBMovie(item);
     });
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getTopRated: async (type: 'movie' | 'tv'): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.isTopRated && item.type === type);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.isTopRated && item.type === type);
+      return local;
     }
 
     const data = await fetchTMDB(`/${type}/top_rated`);
-    if (!data || !data.results) return [];
+    if (!data || !data.results) return local;
 
-    return data.results.slice(0, 10).map((item: any) => {
+    const remote = data.results.slice(0, 10).map((item: any) => {
       return type === 'tv' ? mapTMDBShow(item) : mapTMDBMovie(item);
     });
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getNowShowing: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => (item.isTrending || item.isPopular) && item.type === 'movie').slice(0, 10);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.isTrending || item.isPopular).slice(0, 10);
+      return local;
     }
     const data = await fetchTMDB('/movie/now_playing');
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBMovie);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBMovie);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getMostWatched: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.isPopular).slice(0, 10);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.isPopular).slice(0, 10);
+      return local;
     }
     const data = await fetchTMDB('/movie/popular');
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBMovie);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBMovie);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getArabicMovies: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.type === 'movie' && item.isArabic);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.type === 'movie' && item.isArabic);
+      return local;
     }
     const data = await fetchTMDB('/discover/movie', { with_original_language: 'ar', sort_by: 'popularity.desc' });
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBMovie);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBMovie);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getArabicSeries: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.type === 'tv' && item.isArabic);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.type === 'tv' && item.isArabic);
+      return local;
     }
     const data = await fetchTMDB('/discover/tv', { with_original_language: 'ar', sort_by: 'popularity.desc' });
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBShow);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBShow);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getForeignMovies: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = mockMediaList.filter(item => item.type === 'movie' && !item.isArabic).slice(0, 10);
     if (!apiKey) {
-      return mockMediaList.filter(item => item.type === 'movie' && !item.isArabic).slice(0, 10);
+      return local;
     }
     const data = await fetchTMDB('/discover/movie', { with_original_language: 'en|fr|es|ja|ko', _sort_by: 'popularity.desc' });
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBMovie);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBMovie);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   getRecentlyAdded: async (): Promise<MediaItem[]> => {
     const apiKey = getTMDBApiKey();
+    const local = [...mockMediaList].sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, 10);
     if (!apiKey) {
-      return [...mockMediaList].sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, 10);
+      return local;
     }
     const data = await fetchTMDB('/movie/now_playing', { _sort_by: 'release_date.desc' });
-    if (!data || !data.results) return [];
-    return data.results.slice(0, 10).map(mapTMDBMovie);
+    if (!data || !data.results) return local;
+    const remote = data.results.slice(0, 10).map(mapTMDBMovie);
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))].slice(0, 15);
   },
 
   search: async (query: string): Promise<MediaItem[]> => {
     if (!query.trim()) return [];
 
     const apiKey = getTMDBApiKey();
+    const q = query.toLowerCase();
+    const local = mockMediaList.filter(
+      item => 
+        item.title.toLowerCase().includes(q) || 
+        item.originalTitle?.toLowerCase().includes(q) ||
+        item.overview.toLowerCase().includes(q) ||
+        item.genres.some(g => g.toLowerCase().includes(q))
+    );
+
     if (!apiKey) {
-      // Local searchable
-      const q = query.toLowerCase();
-      return mockMediaList.filter(
-        item => 
-          item.title.toLowerCase().includes(q) || 
-          item.overview.toLowerCase().includes(q) ||
-          item.genres.some(g => g.toLowerCase().includes(q))
-      );
+      return local;
     }
 
     const data = await fetchTMDB('/search/multi', { query });
-    if (!data || !data.results) return [];
+    if (!data || !data.results) return local;
 
-    return data.results
+    const remote = data.results
       .filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv')
       .map((item: any) => {
         return item.media_type === 'tv' ? mapTMDBShow(item) : mapTMDBMovie(item);
       });
+    return [...local, ...remote.filter(r => !local.some(l => l.title === r.title))];
   },
 
   getDetails: async (id: string, type: 'movie' | 'tv'): Promise<MediaItem | null> => {
     // If local mock media
-    if (id.startsWith('m-') || id.startsWith('s-')) {
+    if (!id.startsWith('tmdb-')) {
       return mockMediaList.find(item => item.id === id) || null;
     }
 

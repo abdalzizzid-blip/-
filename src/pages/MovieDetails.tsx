@@ -310,31 +310,118 @@ export const MovieDetails: React.FC = () => {
               </div>
 
               {/* Show episodes inside Story summary too for TV shows so users do not miss episodes! */}
-              {item.type === 'tv' && item.episodes && item.episodes.length > 0 && (
-                <div className="space-y-3.5">
-                  <h3 className="text-sm font-black text-rose-500 uppercase tracking-wider px-1">{isRtl ? 'حلقات المسلسل' : 'Show Episodes'}</h3>
-                  <div className="bg-slate-900/30 border border-slate-900/60 rounded-2xl divide-y divide-slate-950 overflow-hidden shadow-sm">
-                    {item.episodes.map((ep) => (
-                      <Link
-                        key={ep.id}
-                        to={`/watch/tv/${item.id}?ep=${ep.episodeNumber}`}
-                        className="p-4 flex items-center justify-between gap-4 hover:bg-slate-850/80 transition-colors group text-left block"
-                      >
-                        <div className={`space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
-                          <span className="text-[10px] font-black tracking-widest text-rose-500 uppercase">
-                            {isRtl ? `الحلقة ${ep.episodeNumber}` : `Episode ${ep.episodeNumber}`}
-                          </span>
-                          <h4 className="font-extrabold text-xs sm:text-sm text-white group-hover:text-rose-450 transition-colors leading-tight">
-                            {ep.title}
-                          </h4>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0 select-none">
-                          <span className="text-[10px] sm:text-xs font-bold text-slate-500 font-mono">{ep.duration}</span>
-                          <div className="p-2 rounded-full bg-slate-950 text-slate-400 group-hover:bg-rose-600 group-hover:text-white transition-all shadow-md">
-                            <Play className={`h-3 w-3 fill-current ${isRtl ? 'rotate-180' : ''}`} />
+              {item.type === 'tv' && (() => {
+                const activeEps = (item.episodes && item.episodes.length > 0) 
+                  ? item.episodes 
+                  : [
+                      {
+                        id: `ep-fallback-${item.id}-1`,
+                        title: isRtl ? 'الحلقة الافتتاحية الأولى' : 'Episode 1: Pilot',
+                        season: 1,
+                        episodeNumber: 1,
+                        duration: '45m',
+                        videoUrl: item.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+                      }
+                    ];
+                
+                return (
+                  <div className="space-y-3.5">
+                    <h3 className="text-sm font-black text-rose-500 uppercase tracking-wider px-1">{isRtl ? 'حلقات المسلسل' : 'Show Episodes'}</h3>
+                    <div className="bg-slate-900/30 border border-slate-900/60 rounded-2xl divide-y divide-slate-950 overflow-hidden shadow-sm">
+                      {activeEps.map((ep) => (
+                        <Link
+                          key={ep.id}
+                          to={`/watch/tv/${item.id}?ep=${ep.episodeNumber}`}
+                          className="p-4 flex items-center justify-between gap-4 hover:bg-slate-850/80 transition-colors group text-left block"
+                        >
+                          <div className={`space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                            <span className="text-[10px] font-black tracking-widest text-rose-500 uppercase">
+                              {isRtl ? `الموسم ${ep.season} • الحلقة ${ep.episodeNumber}` : `Season ${ep.season} • Episode ${ep.episodeNumber}`}
+                            </span>
+                            <h4 className="font-extrabold text-xs sm:text-sm text-white group-hover:text-rose-450 transition-colors leading-tight">
+                              {ep.title}
+                            </h4>
                           </div>
-                        </div>
+                          <div className="flex items-center gap-3 shrink-0 select-none">
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-500 font-mono">{ep.duration}</span>
+                            <div className="p-2 rounded-full bg-slate-950 text-slate-400 group-hover:bg-rose-600 group-hover:text-white transition-all shadow-md">
+                              <Play className={`h-3 w-3 fill-current ${isRtl ? 'rotate-180' : ''}`} />
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Available Streaming Servers (سيرفرات البث المتوفرة للمشاهدة فورا) */}
+              <div className="space-y-4 pt-6 border-t border-slate-900/60 font-sans">
+                <div className="flex items-center gap-2">
+                  <Tv className="h-4.5 w-4.5 text-rose-500 shrink-0" />
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">{isRtl ? 'سيرفرات البث المتوفرة للتشغيل مباشرة:' : 'Available Streaming Servers:'}</h3>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {(() => {
+                    const streamServers = (item.servers && item.servers.length > 0) 
+                      ? item.servers 
+                      : [
+                          { 
+                            id: 'srv-primary', 
+                            name: isRtl ? 'خادم كورا الرئيسي (VIP)' : 'Kora Main Stream (VIP)', 
+                            url: item.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4' 
+                          },
+                          { 
+                            id: 'srv-cloud', 
+                            name: isRtl ? 'خادم سحابي سريع (FHD)' : 'Fast Stream Server (FHD)', 
+                            url: item.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4' 
+                          },
+                          { 
+                            id: 'srv-backup', 
+                            name: isRtl ? 'سيرفر احتياطي سريع' : 'Backup Fast Server', 
+                            url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4' 
+                          }
+                        ];
+                    
+                    return streamServers.map((srv) => (
+                      <Link
+                        key={srv.id}
+                        to={`/watch/${item.type}/${item.id}?srv=${srv.id}`}
+                        className="p-3 bg-slate-950/60 border border-slate-900 rounded-xl text-right hover:bg-[#100a1a] hover:border-rose-500/10 text-slate-350 hover:text-white transition-all flex flex-col justify-between h-18 cursor-pointer"
+                      >
+                        <span className="text-[8px] uppercase font-mono tracking-widest text-[#7052ff] font-extrabold block">
+                          {isRtl ? 'سيرفر بث سريع' : 'STREAM NODE'}
+                        </span>
+                        <span className="text-xs font-black truncate">
+                          {srv.name}
+                        </span>
                       </Link>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Direct Download Mirrors (روابط التحميل المباشر) */}
+              {item.downloadServers && item.downloadServers.length > 0 && (
+                <div className="space-y-4 pt-5 border-t border-slate-900/60 font-sans">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-rose-500 shrink-0" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">{isRtl ? 'روابط التحميل المباشر للعمل:' : 'Direct Download Mirrors:'}</h3>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {item.downloadServers.map((dl) => (
+                      <a
+                        key={dl.id}
+                        href={dl.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4.5 py-2.5 bg-slate-950 hover:bg-[#100a1a] border border-slate-900 hover:border-rose-500/20 rounded-xl text-xs font-black text-rose-450 hover:text-rose-400 transition-all flex items-center gap-2 shadow-inner scale-100 hover:scale-[1.02] active:scale-95 duration-200"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span>{dl.name}</span>
+                      </a>
                     ))}
                   </div>
                 </div>

@@ -35,7 +35,7 @@ export const INITIAL_ADS: AdBanner[] = [
     imageUrl: 'https://images.unsplash.com/photo-1542204172-e7052809a86e?q=80&w=1200&fit=crop',
     targetUrl: 'https://www.google.com',
     position: 'footer', // Also serves as preroll sponsorship
-    isActive: true,
+    isActive: false,
     clicksCount: 215
   }
 ];
@@ -51,7 +51,9 @@ export const adService = {
       return INITIAL_ADS;
     }
     try {
-      return JSON.parse(cached);
+      const ads: AdBanner[] = JSON.parse(cached);
+      // Ensure partner ad is always disabled per user request
+      return ads.map(a => a.id === 'ad-video-preroll' ? { ...a, isActive: false } : a);
     } catch (e) {
       return INITIAL_ADS;
     }

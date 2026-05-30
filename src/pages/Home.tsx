@@ -4,6 +4,7 @@ import { MediaItem } from '../types';
 import { MovieCard } from '../components/MovieCard';
 import { ArabicCategoryExplorer } from '../components/ArabicCategoryExplorer';
 import { AdBannerPlacement } from '../components/AdBannerPlacement';
+import { ContinueWatchingRow } from '../components/ContinueWatchingRow';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { Play, Flame, Star, Zap, Info, ShieldAlert, Award, ChevronLeft, ChevronRight, Tv, Film, Globe, Sparkles } from 'lucide-react';
@@ -296,6 +297,9 @@ export const Home: React.FC = () => {
 
       {/* Top Native Advertisement Banner */}
       <AdBannerPlacement position="top" className="my-2" />
+
+      {/* Continue Watching Section linked directly to Firestore history */}
+      <ContinueWatchingRow />
 
       {loading ? (
         <div className="py-28 flex flex-col items-center justify-center gap-3">

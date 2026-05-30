@@ -74,12 +74,24 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
               onClick={handleToggle}
               className={`flex h-10 w-10 items-center justify-center rounded-full border text-white transition-all transform scale-75 group-hover:scale-100 cursor-pointer ${
                 exists
-                  ? 'bg-rose-600/20 border-rose-500 text-rose-400 hover:bg-rose-600/35'
+                  ? 'bg-rose-600/30 border-rose-550 text-rose-400 hover:bg-rose-600/50'
                   : 'bg-black/60 border-slate-700 hover:border-white hover:bg-black/90'
               }`}
               title={exists ? 'Remove from Watchlist' : 'Add to Watchlist'}
             >
-              {exists ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              <motion.div
+                key={exists ? 'active' : 'inactive'}
+                initial={{ scale: 0.8 }}
+                animate={{ scale: exists ? [1, 1.45, 1.15, 1.3, 1] : 1 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className="flex items-center justify-center"
+              >
+                {exists ? (
+                  <Heart className="h-4.5 w-4.5 fill-rose-500 text-rose-500" />
+                ) : (
+                  <Heart className="h-4.5 w-4.5" />
+                )}
+              </motion.div>
             </button>
           </div>
           

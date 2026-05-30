@@ -50,6 +50,7 @@ export interface MediaItem {
   trailerUrl: string;
   videoUrl?: string; // main/default stream URL
   servers?: VideoServer[];
+  downloadServers?: VideoServer[];
   cast: string[];
   director?: string;
   creator?: string; // for tv series

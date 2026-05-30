@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { tmdbService } from '../services/tmdbService';
 import { MediaItem } from '../types';
@@ -69,6 +70,8 @@ export const Profile: React.FC = () => {
   const [showAvatarPresets, setShowAvatarPresets] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; success: boolean } | null>(null);
 
+  const isRtl = lang === 'ar';
+
   // App-level client visual settings (Streaming Preferences)
   const [streamQuality, setStreamQuality] = useState<'4k' | 'fhd' | 'hd' | 'saver'>('fhd');
   const [autoPlayNext, setAutoPlayNext] = useState<boolean>(true);
@@ -79,7 +82,10 @@ export const Profile: React.FC = () => {
     return localStorage.getItem('koraflix_offline_cache_active') === 'true';
   });
   const [cachedItemsCount, setCachedItemsCount] = useState<number>(0);
+  const [cachedSizeMB, setCachedSizeMB] = useState<number>(0);
   const [isPreCaching, setIsPreCaching] = useState<boolean>(false);
+  const [syncProgress, setSyncProgress] = useState<number>(0);
+  const [syncStep, setSyncStep] = useState<string>('');
 
   // Monitor off-grid Service Worker caching states
   useEffect(() => {
@@ -87,8 +93,12 @@ export const Profile: React.FC = () => {
       if (event.data) {
         if (event.data.type === 'CACHE_INFO') {
           setCachedItemsCount(event.data.count || 0);
+          if (event.data.sizeMB !== undefined) {
+            setCachedSizeMB(event.data.sizeMB);
+          }
         } else if (event.data.type === 'CACHE_CLEARED') {
           setCachedItemsCount(0);
+          setCachedSizeMB(0);
           setToastMessage({
             text: isRtl ? 'تم تفريغ بافر الذاكرة المحلية المؤقتة 🧹' : 'Offline local buffer cleared fully 🧹',
             success: true
@@ -117,18 +127,35 @@ export const Profile: React.FC = () => {
 
   const handlePreCache = async () => {
     setIsPreCaching(true);
+    setSyncProgress(5);
+    setSyncStep(isRtl ? 'جاري الاتصال بخوادم TMDB وربط بروتوكولات المزامنة...' : 'Opening secure handshake with TMDB caching pipeline...');
+    
     setToastMessage({
-      text: isRtl ? 'جاري الاتصال وسحب كتالوج الوسائط السينمائية الأكثر رواجاً وشعبية...' : 'Connecting cache pipelines to TMDB Trending and Popular lists...',
+      text: isRtl ? 'بدء سحب الكتالوج المحدث ومزامنة الكاش دون اتصال...' : 'Starting full offline catalog synchronization...',
       success: true
     });
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 2500);
 
     try {
-      // Fetch both 'Trending' and 'Popular' lists explicitly from TMDB API
+      // Stage 1: Fetching lists (Progress 5% -> 50%)
+      setSyncProgress(15);
+      setSyncStep(isRtl ? 'جاري سحب الأفلام الرائجة (Trending Movies)...' : 'Fetching Trending Movies list from TMDB...');
       const trendingMovies = await tmdbService.getTrending('movie').catch(() => []);
+      
+      setSyncProgress(25);
+      setSyncStep(isRtl ? 'جاري سحب المسلسلات الرائجة (Trending Shows)...' : 'Fetching Trending TV Shows list from TMDB...');
       const trendingTV = await tmdbService.getTrending('tv').catch(() => []);
+      
+      setSyncProgress(35);
+      setSyncStep(isRtl ? 'جاري تحميل الأعمال الأكثر شعبية في الشرق الأوسط...' : 'Caching Top Popular Cinema charts...');
       const popularMovies = await tmdbService.getPopular('movie').catch(() => []);
+      
+      setSyncProgress(45);
+      setSyncStep(isRtl ? 'جاري فهرسة المسلسلات الأكثر مشاهدة اليوم...' : 'Indexing most-watched TV titles today...');
       const popularTV = await tmdbService.getPopular('tv').catch(() => []);
+      
+      setSyncProgress(50);
+      setSyncStep(isRtl ? 'جاري مزامنة ترشيحات الواجهة الأساسية (Now Showing)...' : 'Buffering home showcase and live recommendations...');
       const nowShowing = await tmdbService.getNowShowing().catch(() => []);
       
       const combined = [
@@ -143,26 +170,56 @@ export const Profile: React.FC = () => {
       const uniqueItems = Array.from(new Map(combined.map(item => [item.id, item])).values());
       const urlsToWarm = ['/', '/index.html'];
 
-      // Cache details and compile image URLs to warm up local storage
+      // Stage 2: Metadata Caching (Progress 50% -> 75%)
+      setSyncStep(isRtl ? 'جاري حفظ التفاصيل، طواقم التمثيل وقصص العروض...' : 'Compiling nested title details, casts, and Synopses...');
+      
+      let itemsProcessed = 0;
+      const totalItems = uniqueItems.length || 1;
+      
       for (const item of uniqueItems) {
         if (item.posterUrl) urlsToWarm.push(item.posterUrl);
         if (item.backdropUrl) urlsToWarm.push(item.backdropUrl);
         
         // Fire detail queries to warm up metadata API payloads inside service worker caches
         tmdbService.getDetails(item.id, item.type).catch(() => {});
+        itemsProcessed++;
+        
+        // Increment progress between 50% and 75%
+        const metaProgress = Math.min(75, 50 + Math.floor((itemsProcessed / totalItems) * 25));
+        setSyncProgress(metaProgress);
       }
 
-      // Warm up image assets cache explicitly by loading their image references
+      // Stage 3: Image asset pre-loading (Progress 75% -> 98%)
+      setSyncStep(isRtl ? 'جاري جلب بوسترات العروض وخلفيات التصفح عالية الجودة...' : 'Downloading and storing graphic assets and posters...');
+      
+      const imagesToWarm = urlsToWarm.slice(0, 30);
+      let imagesLoaded = 0;
+      const totalImages = imagesToWarm.length || 1;
+
       await Promise.all(
-        urlsToWarm.slice(0, 30).map(u => {
+        imagesToWarm.map(u => {
           return new Promise((resolve) => {
             const img = new Image();
             img.src = u;
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
+            img.onload = () => {
+              imagesLoaded++;
+              const imgProgress = Math.min(98, 75 + Math.floor((imagesLoaded / totalImages) * 23));
+              setSyncProgress(imgProgress);
+              resolve(true);
+            };
+            img.onerror = () => {
+              imagesLoaded++;
+              const imgProgress = Math.min(98, 75 + Math.floor((imagesLoaded / totalImages) * 23));
+              setSyncProgress(imgProgress);
+              resolve(false);
+            };
           });
         })
       );
+
+      // Stage 4: Sync conclusion (Progress 98% -> 100%)
+      setSyncProgress(100);
+      setSyncStep(isRtl ? 'تمت مزامنة الكتالوج وملفات الطوارئ بالكامل! جاهز للعرض ✈️' : 'Catalog and local emergency sandbox synchronized fully! Ready for travel ✈️');
 
       // Verify and update stored stats via service worker
       if (navigator.serviceWorker?.controller) {
@@ -176,8 +233,12 @@ export const Profile: React.FC = () => {
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err) {
       console.warn('Cache warm-up error:', err);
+      setSyncStep(isRtl ? 'حدث خطأ غير متوقع أثناء المزامنة' : 'Unexpected error during offline sync');
     } finally {
-      setIsPreCaching(false);
+      // Keep state showing 100% completed briefly so user reads it, then allow re-sync or hide after 4 seconds
+      setTimeout(() => {
+        setIsPreCaching(false);
+      }, 4000);
     }
   };
 
@@ -317,8 +378,6 @@ export const Profile: React.FC = () => {
       setTimeout(() => setToastMessage(null), 2500);
     }
   };
-
-  const isRtl = lang === 'ar';
 
   if (!user) {
     return (
@@ -704,18 +763,55 @@ export const Profile: React.FC = () => {
               <div className="bg-slate-950/80 p-4 rounded-2xl border border-dashed border-rose-500/25 space-y-3.5 animate-fade-in text-right">
                 <div className="flex items-center justify-between text-xs font-black">
                   <span className="text-slate-400">{isRtl ? 'حالة مخزن الطوارئ دون اتصال:' : 'Offline Sandbox Status:'}</span>
-                  <span className="text-rose-500 font-mono select-all bg-rose-600/10 px-2 py-0.5 rounded border border-rose-500/10">
-                    {cachedItemsCount} {isRtl ? 'ملف مخزن محلياً' : 'files cached'}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-row-reverse">
+                    {cachedSizeMB > 0 && (
+                      <span className="text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/10">
+                        {cachedSizeMB} MB
+                      </span>
+                    )}
+                    <span className="text-rose-500 font-mono select-all bg-rose-600/10 px-2 py-0.5 rounded border border-rose-500/10">
+                      {cachedItemsCount} {isRtl ? 'ملف مخزن' : 'cached files'}
+                    </span>
+                  </div>
                 </div>
                 
                 {/* Specific Travel Preparation Helper Label */}
-                <p className="text-[10px] text-slate-500 leading-relaxed">
+                <p className="text-[10px] text-slate-400/80 leading-relaxed">
                   {isRtl 
                     ? '💡 نصيحة السفر: انقر على زر "مزامنة الآن" أدناه لسحب جميع الأفلام والمسلسلات الشائعة لضمان عملها بشكل كامل في الطائرة أو في الأماكن المغلقة دون اتصال بالشبكة.'
                     : '💡 Travel Prep Tip: Click "Sync Now" below to pre-download up-to-date Trending & Popular lists so you can watch stream titles on flights or off-grid.'
                   }
                 </p>
+
+                {/* Visual Sync Progress Bar & Active Step Logger */}
+                {(isPreCaching || syncProgress > 0) && (
+                  <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-900/50 space-y-2 text-right">
+                    <div className="flex items-center justify-between text-[10px] font-black flex-row-reverse">
+                      <span className="text-slate-400">
+                        {isRtl ? 'مؤشر مزامنة الكتالوج المقاوم للثغرات' : 'Local Sandbox Sync Progress'}
+                      </span>
+                      <span className="text-rose-500 font-mono">
+                        {syncProgress}%
+                      </span>
+                    </div>
+
+                    {/* Progress slider track */}
+                    <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-900/40 relative">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${syncProgress}%` }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="h-full bg-gradient-to-r from-rose-600 to-amber-500 rounded-full shadow-[0px_0px_5px_rgba(225,29,72,0.3)]"
+                      />
+                    </div>
+
+                    {/* Step description */}
+                    <div className="flex items-start gap-1.5 text-[9px] font-bold text-slate-400 mt-1 leading-relaxed justify-end text-right">
+                      <span>{syncStep}</span>
+                      <span className="inline-block mt-1 shrink-0 h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
